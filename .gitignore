@@ -1,0 +1,7 @@
+
+.idea/
+env/
+modeltestcase.db
+*.egg-info/
+*.iml
+**/__pycache__
