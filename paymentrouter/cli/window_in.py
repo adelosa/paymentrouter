@@ -52,9 +52,14 @@ for each output_queue
     - write records to mongo - collection=queue
 """
 import json
+import logging
+
 import click
+import pymongo
 
 from paymentrouter.MessageRouter import MessageRouter
+
+LOGGER = logging.getLogger(__name__)
 
 
 class CommandArgs:
@@ -76,7 +81,7 @@ def convert_input(input_format, input_file_handle):
 
     :param input_format: dict containing name and version of format
         { 'name': 'format_name', 'version': 1 }
-    :param input_file: file handle to input
+    :param input_file_handle: file handle to input
     :return: dict containing file records
     """
     mod_name = '.'.join(
@@ -95,8 +100,19 @@ def route_items(file_dict, routing):
         file_item['queue'] = queue
 
 
-def write_to_mongo(file_dict):
-    print(file_dict)
+def write_to_mongo(file_dict, db_host, db_name):
+
+    click.echo("Connecting to mongo at {} {}".format(db_host, db_name))
+    client = pymongo.MongoClient("mongodb://" + db_host)
+    db_client = client[db_name]
+
+    # get the queues allocated in the file_dict
+    queues = set([item['queue'] for item in file_dict])
+
+    # write contents of each queue to collection
+    for queue in queues:
+        queue_dict_gen = filter(lambda d: d['queue'] == queue, file_dict)
+        db_client[queue].insert_many(queue_dict_gen)
 
 
 @pass_args
@@ -109,15 +125,19 @@ def run(args):
     # determine item routing
     route_items(file_dict, config['routing'])
     # write the trans to mongo using queue = collection
-    write_to_mongo(file_dict)
+    write_to_mongo(file_dict, args.db_host, args.db_name)
 
 
 @click.command()
 @click.argument('config-file', type=click.File('r'))
+@click.option('--db-host', envvar='WINDOW_DB_HOST', default='127.0.0.1')
+@click.option('--db-name', envvar='WINDOW_DB_NAME', default='window')
 @pass_args
-def cli_entry(args, config_file):
+def cli_entry(args, config_file, db_host, db_name):
     """
     Run an input window
     """
     args.config_file = config_file
+    args.db_host = db_host
+    args.db_name = db_name
     run()

@@ -1,6 +1,6 @@
 import unittest
 import mock
-from paymentrouter.cli.window_in import convert_input, route_items
+from paymentrouter.cli.window_in import convert_input, route_items, write_to_mongo
 
 
 def file_to_dict(file_handle):
@@ -52,6 +52,14 @@ class WindowInTestCase(unittest.TestCase):
             else:
                 self.assertEqual(item['queue'], 'default')
 
+    def test_write_to_mongo(self):
+        file_dict = [
+            {'id': 1, 'value': 1, 'queue': 'one'},
+            {'id': 2, 'value': 2, 'queue': 'two'},
+            {'id': 3, 'value': 1, 'queue': 'one'},
+        ]
+        write_to_mongo(file_dict, '192.168.99.100', 'test')
+        self.assertTrue(True)
 
 
 if __name__ == '__main__':
