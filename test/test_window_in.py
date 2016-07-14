@@ -9,7 +9,7 @@ def file_to_dict(file_handle):
 
 
 def dummy_rule(message, value):
-    if message['value'] == 1:
+    if message['value'] == value:
         return True
     return False
 
@@ -35,13 +35,13 @@ class WindowInTestCase(unittest.TestCase):
         ]
         routing = {
             "rule1": {
-                "rule_module": "paymentrouter.message_type.direct_entry_1",
                 "rule_function": "route_rule_direct_entry_bsb",
                 "rule_value": 1,
                 "queue": "queue_1"
             },
         }
-        route_items(file_dict, routing)
+        file_format = {'name': 'direct_entry', 'version': 1}
+        route_items(file_dict, routing, file_format)
         self.assertEqual(len(file_dict), 3)
         print(file_dict)
         for item in file_dict:

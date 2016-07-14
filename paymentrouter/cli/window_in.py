@@ -14,19 +14,16 @@ json file format.
     }
     "routing": {
         "001_less_than_100" : {
-            "rule_module" : "dummy",
             "rule_function" : "minimum_amount_routing",
             "rule_value" : 100,
             "queue" : "less_than_100"
             },
         "002_less_than_200" : {
-            "rule_module" : "dummy",
             "rule_function" : "minimum_amount_routing",
             "rule_value" : 200,
             "queue" : "less_than_200"
             },
         "099_bsb_route" : {
-            "rule_module" : "paymentrouter.message_type.direct_entry",
             "rule_function" : "route_rule_direct_entry_bsb",
             "rule_value" : "^(57993[0-9]|484799)$",
             "queue" : "de_onus"
@@ -35,21 +32,10 @@ json file format.
 }
 
 
-- read json config
-- check for presence of filename
-- **TODO** if not present, wait x seconds.. count 10, then exit
-- load filename into memory
 - add to dict format.name as format_name
 - add to dict format.version as format_version
 - add to dict processing_date from command line (odate)
 
-for each item in file [{dict}]
-    - load routing rules
-    - run through message_router
-    - add message_router output to dict as output_queue
-
-for each output_queue
-    - write records to mongo - collection=queue
 """
 import json
 import logging
@@ -69,8 +55,24 @@ class CommandArgs:
 pass_args = click.make_pass_decorator(CommandArgs, ensure=True)
 
 
-def load_json_config(config_file):
-    return json.load(config_file)
+def load_json_config(config_file_handle):
+    """
+    load window config
+    :param config_file_handle: file handle for window config file
+    :return: dict config
+    """
+    return json.load(config_file_handle)
+
+
+def get_format_module_name(input_format):
+    """
+    determine the module name from the input_format
+    :param input_format: dict with name, version keys
+    :return:
+    """
+    return '.'.join(
+        ['paymentrouter', 'message_type', input_format['name']+'_'+str(input_format['version'])]
+    )
 
 
 def convert_input(input_format, input_file_handle):
@@ -79,44 +81,61 @@ def convert_input(input_format, input_file_handle):
     dynamically load from library - message_type.{{ format.name }}_{{ format.version }}
     function signature - file_to_dict(filename) returns [{dict},{dict}..]
 
-    :param input_format: dict containing name and version of format
+    :param input_format: dict with name, version keys
         { 'name': 'format_name', 'version': 1 }
     :param input_file_handle: file handle to input
     :return: dict containing file records
     """
-    mod_name = '.'.join(
-        ['paymentrouter', 'message_type', input_format['name']+'_'+str(input_format['version'])]
-    )
+    mod_name = get_format_module_name(input_format)
     mod = __import__(mod_name, fromlist=['file_to_dict'])
     func = getattr(mod, 'file_to_dict')
     return func(input_file_handle)
 
 
-def route_items(file_dict, routing):
+def route_items(input_dict, routing, input_format):
+    """
+    determine and add queue key to input_dict
+    :param input_dict: list of dict entries
+    :param routing: routing config in dict
+    :param input_format: input_dict format as { name: x, version: 1 }
+    :return: None
+    """
     router = MessageRouter()
     router.output_routing_rules = routing
-    for file_item in file_dict:
-        queue = router.get_message_output_queue(file_item)
-        file_item['queue'] = queue
+    for input_item in input_dict:
+        queue = router.get_message_output_queue(
+            input_item, default_rule_module=get_format_module_name(input_format))
+        input_item['queue'] = queue
 
 
-def write_to_mongo(file_dict, db_host, db_name):
-
+def write_to_mongo(input_dict, db_host, db_name):
+    """
+    Write input_dict to mongo. Queue determines collection
+    :param input_dict: list of dict containing data
+    :param db_host: mongo host name
+    :param db_name: mongo db name
+    :return: None
+    """
     click.echo("Connecting to mongo at {} {}".format(db_host, db_name))
     client = pymongo.MongoClient("mongodb://" + db_host)
     db_client = client[db_name]
 
-    # get the queues allocated in the file_dict
-    queues = set([item['queue'] for item in file_dict])
+    # get the queues allocated in the input_dict
+    queues = set([item['queue'] for item in input_dict])
 
     # write contents of each queue to collection
     for queue in queues:
-        queue_dict_gen = filter(lambda d: d['queue'] == queue, file_dict)
+        queue_dict_gen = filter(lambda d: d['queue'] == queue, input_dict)
         db_client[queue].insert_many(list(queue_dict_gen))
 
 
 @pass_args
 def run(args):
+    """
+    run a window
+    :param args: input args
+    :return: None
+    """
     # load window config
     config = load_json_config(args.config_file)
 
@@ -125,7 +144,7 @@ def run(args):
         file_dict = convert_input(config['format'], input_file_handle)
 
     # determine item routing
-    route_items(file_dict, config['routing'])
+    route_items(file_dict, config['routing'], config['format'])
 
     # write the trans to mongo using queue = collection
     write_to_mongo(file_dict, args.db_host, args.db_name)
@@ -137,9 +156,6 @@ def run(args):
 @click.option('--db-name', envvar='WINDOW_DB_NAME', default='window')
 @pass_args
 def cli_entry(args, config_file, db_host, db_name):
-    """
-    Run an input window
-    """
     args.config_file = config_file
     args.db_host = db_host
     args.db_name = db_name

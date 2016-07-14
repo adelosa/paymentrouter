@@ -19,10 +19,11 @@ class MessageRouter:
         self.output_routing_rules = json.loads(json_rules)
         #TODO Validate rules
 
-    def get_message_output_queue(self, message):
+    def get_message_output_queue(self, message, default_rule_module=None):
         """
         determine the output queue to send message to based on rules
         :param message: standard message data
+        :param default_rule_module: use as module when not provided
         :return: queue that message should be routed to
         """
         LOGGER.debug("get_message_output_queue")
@@ -38,7 +39,7 @@ class MessageRouter:
 
             # check to see if function pointer available, if not get it
             if not self.output_routing_rules[rule_id].get('rule_function_pointer', None):
-                rule_module = self.output_routing_rules[rule_id]['rule_module']
+                rule_module = self.output_routing_rules[rule_id].get('rule_module', default_rule_module)
                 rule_function = self.output_routing_rules[rule_id]['rule_function']
                 mod = __import__(rule_module, fromlist=[rule_function])
                 func = getattr(mod, rule_function)
