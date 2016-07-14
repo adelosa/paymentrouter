@@ -112,18 +112,21 @@ def write_to_mongo(file_dict, db_host, db_name):
     # write contents of each queue to collection
     for queue in queues:
         queue_dict_gen = filter(lambda d: d['queue'] == queue, file_dict)
-        db_client[queue].insert_many(queue_dict_gen)
+        db_client[queue].insert_many(list(queue_dict_gen))
 
 
 @pass_args
 def run(args):
     # load window config
     config = load_json_config(args.config_file)
+
     # load input file and convert
     with open(config['input_file']) as input_file_handle:
         file_dict = convert_input(config['format'], input_file_handle)
+
     # determine item routing
     route_items(file_dict, config['routing'])
+
     # write the trans to mongo using queue = collection
     write_to_mongo(file_dict, args.db_host, args.db_name)
 

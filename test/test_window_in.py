@@ -52,14 +52,22 @@ class WindowInTestCase(unittest.TestCase):
             else:
                 self.assertEqual(item['queue'], 'default')
 
-    def test_write_to_mongo(self):
+    @mock.patch('pymongo.MongoClient')
+    def test_write_to_mongo(self, mock_mongo):
+
+        db_object = mock.MagicMock()
+        mock_mongo.return_value = {'test': db_object}
+
         file_dict = [
             {'id': 1, 'value': 1, 'queue': 'one'},
             {'id': 2, 'value': 2, 'queue': 'two'},
             {'id': 3, 'value': 1, 'queue': 'one'},
         ]
         write_to_mongo(file_dict, '192.168.99.100', 'test')
-        self.assertTrue(True)
+
+        mock_mongo.assert_called_with('mongodb://192.168.99.100')
+        arg_list = db_object['any'].insert_many.call_args_list
+        self.assertEqual(len(arg_list), 2)
 
 
 if __name__ == '__main__':
