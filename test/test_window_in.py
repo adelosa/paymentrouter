@@ -1,7 +1,8 @@
 import unittest
 import mock
-from paymentrouter.cli.window_in import convert_input, route_items, write_to_mongo
-
+from paymentrouter.cli.window_in import (
+    convert_input, route_items, write_to_mongo, get_format_module_name
+)
 
 def file_to_dict(file_handle):
     file_contents = file_handle.read()
@@ -15,6 +16,10 @@ def dummy_rule(message, value):
 
 
 class WindowInTestCase(unittest.TestCase):
+
+    def test_get_format_module_name(self):
+        mod_name = get_format_module_name({'name': 'my_format', 'version': 5})
+        self.assertEqual(mod_name, 'paymentrouter.message_type.my_format_5')
 
     @mock.patch('paymentrouter.message_type.direct_entry_1.file_to_dict', side_effect=file_to_dict)
     def test_convert_input(self, mock_message_type):
