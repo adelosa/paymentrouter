@@ -3,7 +3,7 @@ from paymentrouter.MessageRouter import MessageRouter
 
 import logging
 
-logging.basicConfig(format='%(levelname)s:%(message)s', level=logging.DEBUG)
+logging.basicConfig(format='%(levelname)s:%(message)s', level=logging.INFO)
 
 
 def minimum_amount_routing(message, minimum_amount):

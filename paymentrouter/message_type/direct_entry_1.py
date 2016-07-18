@@ -35,15 +35,42 @@ def file_to_dict(file_handle):
     :param file_handle:
     :return:
     """
-    file_contents = file_handle.read()
-    return [
-        {'id': 1,
-         'value': file_contents,
-         "message_version": 1,
-         "message_type": 'direct_entry',
-         "bsb_number": '484799'
-         }
-    ]
+    file_contents = file_handle.readlines()
+    output_records = []
+
+    for file_contents_line in file_contents:
+        record_type = file_contents_line[:1]
+        if record_type == '0':
+            header = slices(file_contents_line, 18, 2, 3, 7, 26, 6, 12, 6)
+        if record_type in ('1', '2', '3'):
+            detail = slices(file_contents_line, 1, 7, 9, 1, 2, 10, 32, 18, 7, 9, 16, 8)
+            transaction = {
+                'message_type': 'direct_entry',
+                'message_version': 1,
+                'record_type': record_type,
+                'reel_seq_num': header[1],
+                'name_fin_inst': header[2],
+                'user_name': header[4],
+                'user_num': header[5],
+                'file_desc': header[6],
+                'date_for_process': header[7],
+                'bsb_number': detail[1],
+                'account_number': detail[2],
+                'indicator': detail[3],
+                'tran_code': detail[4],
+                'amount': int(detail[5]),
+                'account_title': detail[6],
+                'lodgement_ref': detail[7],
+                'trace_bsb_number': detail[8],
+                'trace_account_number': detail[9],
+                'name_of_remitter': detail[10],
+                'amount_of_withholding_tax': detail[11]
+            }
+            output_records.append(transaction)
+        if record_type == '7':
+            pass
+
+    return output_records
 
 
 def is_message_ok(message):
@@ -71,3 +98,12 @@ def route_rule_direct_entry_bsb(message, bsb_regex):
     if re.match(bsb_regex, message['bsb_number']):
         return True
     return False
+
+
+def slices(s, *args):
+    position = 0
+    return_vals = []
+    for length in args:
+        return_vals.append(s[position:position + length])
+        position += length
+    return return_vals
