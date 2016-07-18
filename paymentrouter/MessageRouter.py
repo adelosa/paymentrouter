@@ -1,3 +1,25 @@
+"""
+MessageRouter
+-------------
+takes a message and routes it using rules to required destination
+rules are executed in order based on rule name
+rule_module is optional.
+
+json_config format
+{
+    "rule1" : {
+        "rule_function" : "minimum_amount_routing",
+        "rule_value" : 100,
+        "queue" : "less_than_100"
+    },
+    "rule2" : {
+        "rule_module" : "mymodule.folder.module_name'
+        "rule_function" : "minimum_amount_routing",
+        "rule_value" : 200,
+        "queue" : "less_than_200"
+    }
+}
+"""
 import logging
 import json
 from collections import OrderedDict
@@ -39,7 +61,9 @@ class MessageRouter:
 
             # check to see if function pointer available, if not get it
             if not self.output_routing_rules[rule_id].get('rule_function_pointer', None):
-                rule_module = self.output_routing_rules[rule_id].get('rule_module', default_rule_module)
+                rule_module = self.output_routing_rules[rule_id].get(
+                    'rule_module', default_rule_module
+                )
                 rule_function = self.output_routing_rules[rule_id]['rule_function']
                 mod = __import__(rule_module, fromlist=[rule_function])
                 func = getattr(mod, rule_function)

@@ -1,8 +1,12 @@
 import unittest
 import mock
+
+from click.testing import CliRunner
+
 from paymentrouter.cli.window_in import (
-    convert_input, route_items, write_to_mongo, get_format_module_name
+    convert_input, route_items, write_to_mongo, get_format_module_name, cli_entry
 )
+
 
 def file_to_dict(file_handle):
     file_contents = file_handle.read()
@@ -28,7 +32,6 @@ class WindowInTestCase(unittest.TestCase):
                 output = convert_input({'name': 'direct_entry', 'version': 1}, file_handle)
         self.assertEqual(output, {'id': 1, 'value': 'test'})
 
-
     @mock.patch(
         'paymentrouter.message_type.direct_entry_1.route_rule_direct_entry_bsb',
         side_effect=dummy_rule)
@@ -48,7 +51,6 @@ class WindowInTestCase(unittest.TestCase):
         file_format = {'name': 'direct_entry', 'version': 1}
         route_items(file_dict, routing, file_format)
         self.assertEqual(len(file_dict), 3)
-        print(file_dict)
         for item in file_dict:
             self.assertIn('id', item)
             self.assertIn('queue', item)
@@ -74,6 +76,34 @@ class WindowInTestCase(unittest.TestCase):
         arg_list = db_object['any'].insert_many.call_args_list
         self.assertEqual(len(arg_list), 2)
 
+    @mock.patch('pymongo.MongoClient')
+    def test_cli_run(self, mock_mongo):
+        config = """
+{
+    "input_file": "test.input.txt",
+    "format": {
+        "name": "direct_entry",
+        "version": 1
+    },
+    "routing": {
+        "099_bsb_route" : {
+            "rule_function" : "route_rule_direct_entry_bsb",
+            "rule_value" : "^(57993[0-9]|484799)$",
+            "queue" : "de_onus"
+        }
+    }
+}
+        """
+        test_data = """Line1: some text data
+line2: hello there"""
+        runner = CliRunner()
+        with runner.isolated_filesystem():
+            with open('test.json', 'w') as fp:
+                fp.write(config)
+            with open('test.input.txt', 'w') as fp:
+                fp.write(test_data)
+            result = runner.invoke(cli_entry, ['test.json'])
+        print(result.output)
 
 if __name__ == '__main__':
     unittest.main()

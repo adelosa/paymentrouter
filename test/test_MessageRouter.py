@@ -3,7 +3,7 @@ from paymentrouter.MessageRouter import MessageRouter
 
 import logging
 
-logging.basicConfig(format='%(levelname)s:%(message)s', level=logging.INFO)
+logging.basicConfig(format='%(levelname)s:%(message)s', level=logging.DEBUG)
 
 
 def minimum_amount_routing(message, minimum_amount):
@@ -43,7 +43,7 @@ class MessageRouterTestCase(unittest.TestCase):
 
     def test_less_than_100(self):
         tran = {
-            'message_type': 'de_tran',
+            'message_type': 'direct_entry',
             'message_version': 1,
             'payment_amount': 99,
             'bsb_number': '484799',
@@ -54,7 +54,7 @@ class MessageRouterTestCase(unittest.TestCase):
 
     def test_between_100_and_200(self):
         tran = {
-            'message_type': 'de_tran',
+            'message_type': 'direct_entry',
             'message_version': 1,
             'payment_amount': 101,
             'bsb_number': '484799',
@@ -65,7 +65,7 @@ class MessageRouterTestCase(unittest.TestCase):
 
     def test_greater_than_200(self):
         tran = {
-            'message_type': 'de_tran',
+            'message_type': 'direct_entry',
             'message_version': 1,
             'payment_amount': 201,
             'bsb_number': '484791',
@@ -76,7 +76,7 @@ class MessageRouterTestCase(unittest.TestCase):
 
     def test_over_200_onus_tran(self):
         tran = {
-            'message_type': 'de_tran',
+            'message_type': 'direct_entry',
             'message_version': 1,
             'payment_amount': 201,
             'bsb_number': '484799',

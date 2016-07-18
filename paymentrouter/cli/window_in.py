@@ -7,11 +7,11 @@ process incoming file based payments
 json file format.
 
 {
-    "filename": "/my/file/location",
+    "input_file": "/my/file/location",
     "format": {
         "name": "direct_entry",
         "version": 1
-    }
+    },
     "routing": {
         "001_less_than_100" : {
             "rule_function" : "minimum_amount_routing",
@@ -28,12 +28,18 @@ json file format.
             "rule_value" : "^(57993[0-9]|484799)$",
             "queue" : "de_onus"
             }
+    },
+    "queues": {
+        "less_than_100" : {
+            format: {
+                "name": "direct_entry",
+                "version: 1
+            }
+        }
     }
 }
 
 
-- add to dict format.name as format_name
-- add to dict format.version as format_version
 - add to dict processing_date from command line (odate)
 
 """
@@ -142,9 +148,11 @@ def run(args):
     # load input file and convert
     with open(config['input_file']) as input_file_handle:
         file_dict = convert_input(config['format'], input_file_handle)
+    LOGGER.debug("BEFORE: file_dict=%s", file_dict)
 
     # determine item routing
     route_items(file_dict, config['routing'], config['format'])
+    LOGGER.debug("ROUTE : file_dict=%s", file_dict)
 
     # write the trans to mongo using queue = collection
     write_to_mongo(file_dict, args.db_host, args.db_name)

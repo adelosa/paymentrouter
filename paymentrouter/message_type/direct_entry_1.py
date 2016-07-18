@@ -15,7 +15,6 @@ Dictionary format for direct_entry
     'reference': '123456789012345678',
     'to_account_name': 'mr anthony d',
     'from_account_name': 'banktek systems',
-
 }
 
 file_to_dict(filename)
@@ -31,8 +30,20 @@ LOGGER = logging.getLogger(__name__)
 
 
 def file_to_dict(file_handle):
+    """
+    convert file to list of dicts, each dict representing a record.
+    :param file_handle:
+    :return:
+    """
     file_contents = file_handle.read()
-    return {'id': 1, 'value': file_contents}
+    return [
+        {'id': 1,
+         'value': file_contents,
+         "message_version": 1,
+         "message_type": 'direct_entry',
+         "bsb_number": '484799'
+         }
+    ]
 
 
 def is_message_ok(message):
@@ -41,7 +52,7 @@ def is_message_ok(message):
     :param message:
     :return:
     """
-    if message['message_version'] >= 1 and message['message_type'] == 'de_tran':
+    if message['message_version'] == 1 and message['message_type'] == 'direct_entry':
         return True
     return False
 
@@ -60,7 +71,3 @@ def route_rule_direct_entry_bsb(message, bsb_regex):
     if re.match(bsb_regex, message['bsb_number']):
         return True
     return False
-
-
-
-
