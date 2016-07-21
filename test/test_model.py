@@ -1,11 +1,8 @@
 import os
 import datetime
 import unittest
-import logging
 
 from paymentrouter.model import Payment, db
-
-logging.basicConfig(format='%(levelname)s:%(message)s', level=logging.INFO)
 
 
 class ModelTestCase(unittest.TestCase):

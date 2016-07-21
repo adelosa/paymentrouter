@@ -1,7 +1,10 @@
 import unittest
+import logging
 from io import StringIO
 
 from paymentrouter.message_type.direct_entry_1 import file_to_dict
+
+LOGGER = logging.getLogger(__name__)
 
 
 class MessageTypeDirectEntryTestCase(unittest.TestCase):
@@ -20,14 +23,15 @@ class MessageTypeDirectEntryTestCase(unittest.TestCase):
         )
         with StringIO(file_content) as file_io:
             vals = file_to_dict(file_io)
-        print(vals)
+        LOGGER.debug(vals)
         self.assertEqual(6, len(vals))
         for tran in vals:
-            if tran['account_title'] == 'ACCOUNT TITLE1------------------':
-                self.assertEqual(tran['amount'], 123)
-                self.assertEqual(tran['bsb_number'], '484-799')
-                self.assertEqual(tran['account_number'], '123456789')
-            elif tran['account_title'] in (
+            LOGGER.debug(tran)
+            if tran['data']['account_title'] == 'ACCOUNT TITLE1------------------':
+                self.assertEqual(tran['data']['amount'], 123)
+                self.assertEqual(tran['data']['bsb_number'], '484-799')
+                self.assertEqual(tran['data']['account_number'], '123456789')
+            elif tran['data']['account_title'] in (
                     'ACCOUNT TITLE2------------------',
                     'ACCOUNT TITLE3------------------',
                     'ACCOUNT TITLE4------------------',

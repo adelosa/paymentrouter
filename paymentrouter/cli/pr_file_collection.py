@@ -1,13 +1,11 @@
 """
-# window_in
+# pr_file_collection
 
 process incoming file based payments
 
-## window_in config
-json file format.
+## config json file format.
 
 {
-    "input_file": "/my/file/location",
     "format": {
         "name": "direct_entry",
         "version": 1
@@ -28,14 +26,6 @@ json file format.
             "rule_value" : "^(57993[0-9]|484799)$",
             "queue" : "de_onus"
             }
-    },
-    "queues": {
-        "less_than_100" : {
-            format: {
-                "name": "direct_entry",
-                "version: 1
-            }
-        }
     }
 }
 
@@ -77,7 +67,7 @@ def get_format_module_name(input_format):
     :return:
     """
     return '.'.join(
-        ['paymentrouter', 'message_type', input_format['name']+'_'+str(input_format['version'])]
+        ['paymentrouter', 'message_type', input_format['type']+'_'+str(input_format['version'])]
     )
 
 
@@ -146,8 +136,7 @@ def run(args):
     config = load_json_config(args.config_file)
 
     # load input file and convert
-    with open(config['input_file']) as input_file_handle:
-        file_dict = convert_input(config['format'], input_file_handle)
+    file_dict = convert_input(config['format'], args.input_file)
     LOGGER.debug("BEFORE: file_dict=%s", file_dict)
 
     # determine item routing
@@ -160,11 +149,13 @@ def run(args):
 
 @click.command()
 @click.argument('config-file', type=click.File('r'))
+@click.argument('input-file', type=click.File('r'))
 @click.option('--db-host', envvar='WINDOW_DB_HOST', default='127.0.0.1')
 @click.option('--db-name', envvar='WINDOW_DB_NAME', default='window')
 @pass_args
-def cli_entry(args, config_file, db_host, db_name):
+def pr_file_collection(args, config_file, input_file, db_host, db_name):
     args.config_file = config_file
+    args.input_file = input_file
     args.db_host = db_host
     args.db_name = db_name
     run()

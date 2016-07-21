@@ -3,11 +3,11 @@ from paymentrouter.MessageRouter import MessageRouter
 
 import logging
 
-logging.basicConfig(format='%(levelname)s:%(message)s', level=logging.INFO)
+logging.basicConfig(format='%(levelname)s:%(module)s:%(lineno)d:%(message)s', level=logging.DEBUG)
 
 
 def minimum_amount_routing(message, minimum_amount):
-    if message['payment_amount'] < minimum_amount:
+    if message['data']['amount'] < minimum_amount:
         return True
     return False
 
@@ -32,7 +32,7 @@ class MessageRouterTestCase(unittest.TestCase):
         "099_bsb_route" : {
             "rule_module" : "paymentrouter.message_type.direct_entry_1",
             "rule_function" : "route_rule_direct_entry_bsb",
-            "rule_value" : "^(57993[0-9]|484799)$",
+            "rule_value" : "^(579-93[0-9]|484-799)$",
             "queue" : "de_onus"
             }
     }
@@ -43,10 +43,16 @@ class MessageRouterTestCase(unittest.TestCase):
 
     def test_less_than_100(self):
         tran = {
-            'message_type': 'direct_entry',
-            'message_version': 1,
-            'payment_amount': 99,
-            'bsb_number': '484799',
+            'collection': {
+                'format': {
+                    'type': 'direct_entry',
+                    'version': 1,
+                },
+            },
+            'data': {
+                'amount': 99,
+                'bsb_number': '484-799',
+            }
         }
 
         selected_queue = self.router.get_message_output_queue(tran)
@@ -54,10 +60,16 @@ class MessageRouterTestCase(unittest.TestCase):
 
     def test_between_100_and_200(self):
         tran = {
-            'message_type': 'direct_entry',
-            'message_version': 1,
-            'payment_amount': 101,
-            'bsb_number': '484799',
+            'collection': {
+                'format': {
+                    'type': 'direct_entry',
+                    'version': 1,
+                },
+            },
+            'data': {
+                'amount': 101,
+                'bsb_number': '484-799',
+            }
         }
 
         selected_queue = self.router.get_message_output_queue(tran)
@@ -65,10 +77,16 @@ class MessageRouterTestCase(unittest.TestCase):
 
     def test_greater_than_200(self):
         tran = {
-            'message_type': 'direct_entry',
-            'message_version': 1,
-            'payment_amount': 201,
-            'bsb_number': '484791',
+            'collection': {
+                'format': {
+                    'type': 'direct_entry',
+                    'version': 1,
+                },
+            },
+            'data': {
+                'amount': 201,
+                'bsb_number': '111-111',
+            }
         }
 
         selected_queue = self.router.get_message_output_queue(tran)
@@ -76,10 +94,16 @@ class MessageRouterTestCase(unittest.TestCase):
 
     def test_over_200_onus_tran(self):
         tran = {
-            'message_type': 'direct_entry',
-            'message_version': 1,
-            'payment_amount': 201,
-            'bsb_number': '484799',
+            'collection': {
+                'format': {
+                    'type': 'direct_entry',
+                    'version': 1,
+                },
+            },
+            'data': {
+                'amount': 201,
+                'bsb_number': '484-799',
+            }
         }
 
         selected_queue = self.router.get_message_output_queue(tran)

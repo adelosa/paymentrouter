@@ -4,26 +4,33 @@ direct entry format
 Dictionary format for direct_entry
 ----------------------------------
 {
-    'message_type': 'direct_entry',
-    'message_version': 1,
-    'trancode': 53,
-    'transaction_amount': 100,
-    'bsb_number': '484799',
-    'account_number': '123456789',
-    'trace_bsb_number': '484799',
-    'trace_account_number': '123456789',
-    'reference': '123456789012345678',
-    'to_account_name': 'mr anthony d',
-    'from_account_name': 'banktek systems',
+    'data': {
+        'record_type': '1',
+        'reel_seq_num': '01',
+        'name_fin_inst': 'SUN',
+        'user_name': 'hello',
+        'user_num': '123456',
+        'file_desc': 'payroll',
+        'date_for_process': '011216',
+        'bsb_number': '484-799',
+        'account_number': '123456789',
+        'indicator': ' ',
+        'tran_code': '53',
+        'amount': 200,  # $2.00
+        'account_title': 'account title',
+        'lodgement_ref': 'lodgement ref',
+        'trace_bsb_number': '484-799',
+        'trace_account_number': '123456789',
+        'name_of_remitter': 'MR DELOSA',
+        'amount_of_withholding_tax': '0000000000',
+        },
 }
-
-file_to_dict(filename)
-read file and convert to [{dict}] as above
-
-
 """
 import logging
 import re
+from datetime import datetime
+
+from paymentrouter.Message import Message
 
 
 LOGGER = logging.getLogger(__name__)
@@ -36,17 +43,19 @@ def file_to_dict(file_handle):
     :return:
     """
     file_contents = file_handle.readlines()
+    LOGGER.debug("file contents \n%s", file_contents)
     output_records = []
 
     for file_contents_line in file_contents:
         record_type = file_contents_line[:1]
+        LOGGER.debug("record_type=%s", record_type)
         if record_type == '0':
             header = slices(file_contents_line, 18, 2, 3, 7, 26, 6, 12, 6)
         if record_type in ('1', '2', '3'):
             detail = slices(file_contents_line, 1, 7, 9, 1, 2, 10, 32, 18, 7, 9, 16, 8)
-            transaction = {
-                'message_type': 'direct_entry',
-                'message_version': 1,
+            message = Message()
+            message.collection['format'] = {'type': 'direct_entry', 'version': 1}
+            message.data = {
                 'record_type': record_type,
                 'reel_seq_num': header[1],
                 'name_fin_inst': header[2],
@@ -66,20 +75,41 @@ def file_to_dict(file_handle):
                 'name_of_remitter': detail[10],
                 'amount_of_withholding_tax': detail[11]
             }
-            output_records.append(transaction)
+            LOGGER.debug(message.get_dict())
+            message.tran_type = 'transfer'
+            message.tran_amount = message.data['amount']
+            message.tran_amount_exponent = 2
+            message.tran_description = 'yo'
+            message.payment_date = datetime.today()
+            message.add_source_item(
+                'account',
+                message.data['bsb_number'],
+                message.data['account_number'],
+                message.data['amount'],
+                message.data['lodgement_ref']
+            )
+            message.add_destination_item(
+                'account',
+                message.data['trace_bsb_number'],
+                message.data['trace_account_number'],
+                message.data['amount'],
+                message.data['name_of_remitter']
+            )
+
+            output_records.append(message.get_dict())
         if record_type == '7':
             pass
 
     return output_records
 
 
-def is_message_ok(message):
+def is_message_ok(message_format):
     """
     check that message type and version is correct
-    :param message:
-    :return:
     """
-    if message['message_version'] == 1 and message['message_type'] == 'direct_entry':
+    LOGGER.debug(message_format)
+    if (message_format['version'] == 1 and
+       message_format['type'] == 'direct_entry'):
         return True
     return False
 
@@ -91,11 +121,12 @@ def route_rule_direct_entry_bsb(message, bsb_regex):
     :param bsb_regex: regex to locate
     :return: Boolean - True if rule matched
     """
-    if not is_message_ok(message):
+    LOGGER.debug("route_rule_direct_entry_bsb:%s", message)
+    if not is_message_ok(message['collection']['format']):
         LOGGER.warn("Rule not processed as message wrong format or version")
         return False
 
-    if re.match(bsb_regex, message['bsb_number']):
+    if re.match(bsb_regex, message['data']['bsb_number']):
         return True
     return False
 
