@@ -1,3 +1,5 @@
+from __future__ import absolute_import
+import sys
 import unittest
 import mock
 import logging
@@ -32,7 +34,8 @@ class PRFileCollectionTestCase(unittest.TestCase):
 
     @mock.patch('paymentrouter.message_type.direct_entry_1.file_to_dict', side_effect=file_to_dict)
     def test_convert_input(self, mock_message_type):
-        with mock.patch('builtins.open', mock.mock_open(read_data='test')):
+        builtin = 'builtins' if sys.version_info[0] == 3 else '__builtin__'
+        with mock.patch('{}.open'.format(builtin), mock.mock_open(read_data='test')):
             with open('/dev/null') as file_handle:
                 output = convert_input({'type': 'direct_entry', 'version': 1}, file_handle)
         self.assertEqual(output, {'id': 1, 'value': 'test'})
