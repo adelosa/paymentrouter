@@ -53,7 +53,7 @@ class Message(object):
         self.source_items = []
         self.destination_items = []
         self.payment_date = datetime.today()
-        self.data = None
+        self.data = {}
         self.collection = {}
         self.distribution = {}
 

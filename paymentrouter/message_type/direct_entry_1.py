@@ -35,6 +35,27 @@ from paymentrouter.Message import Message
 
 LOGGER = logging.getLogger(__name__)
 
+REGEX_DE_HEADER = (r"^(?P<record_type>0) {17}"
+                   r"(?P<reel_seq_num>\d{2})"
+                   r"(?P<name_fin_inst>.{3}).{7}"
+                   r"(?P<user_name>.{26})"
+                   r"(?P<user_num>\d{6})"
+                   r"(?P<file_desc>.{12})"
+                   r"(?P<date_for_process>\d{6}).{40}$")
+
+REGEX_DE_DETAIL = (r"^(?P<record_type>[1-3])"
+                   r"(?P<bsb_number>\d{3}-\d{3})"
+                   r"(?P<account_number>\d{9})"
+                   r"(?P<indicator>.)"
+                   r"(?P<tran_code>\d{2})"
+                   r"(?P<amount>\d{10})"
+                   r"(?P<account_title>.{32})"
+                   r"(?P<lodgement_ref>.{18})"
+                   r"(?P<trace_bsb_number>\d{3}-\d{3})"
+                   r"(?P<trace_account_number>\d{9})"
+                   r"(?P<name_of_remitter>.{16})"
+                   r"(?P<withholding_tax_amount>\d{8})$")
+
 
 def file_to_dict(file_handle):
     """
@@ -45,62 +66,66 @@ def file_to_dict(file_handle):
     file_contents = file_handle.readlines()
     LOGGER.debug("file contents \n%s", file_contents)
     output_records = []
+    header = None
 
     for file_contents_line in file_contents:
+
         record_type = file_contents_line[:1]
         LOGGER.debug("record_type=%s", record_type)
-        if record_type == '0':
-            header = slices(file_contents_line, 18, 2, 3, 7, 26, 6, 12, 6)
-        if record_type in ('1', '2', '3'):
-            detail = slices(file_contents_line, 1, 7, 9, 1, 2, 10, 32, 18, 7, 9, 16, 8)
-            message = Message()
-            message.collection['format'] = {'type': 'direct_entry', 'version': 1}
-            message.data = {
-                'record_type': record_type,
-                'reel_seq_num': header[1],
-                'name_fin_inst': header[2],
-                'user_name': header[4],
-                'user_num': header[5],
-                'file_desc': header[6],
-                'date_for_process': header[7],
-                'bsb_number': detail[1],
-                'account_number': detail[2],
-                'indicator': detail[3],
-                'tran_code': detail[4],
-                'amount': int(detail[5]),
-                'account_title': detail[6],
-                'lodgement_ref': detail[7],
-                'trace_bsb_number': detail[8],
-                'trace_account_number': detail[9],
-                'name_of_remitter': detail[10],
-                'amount_of_withholding_tax': detail[11]
-            }
-            LOGGER.debug(message.get_dict())
-            message.tran_type = 'transfer'
-            message.tran_amount = message.data['amount']
-            message.tran_amount_exponent = 2
-            message.tran_description = 'yo'
-            message.payment_date = datetime.today()
-            message.add_source_item(
-                'account',
-                message.data['bsb_number'],
-                message.data['account_number'],
-                message.data['amount'],
-                message.data['lodgement_ref']
-            )
-            message.add_destination_item(
-                'account',
-                message.data['trace_bsb_number'],
-                message.data['trace_account_number'],
-                message.data['amount'],
-                message.data['name_of_remitter']
-            )
 
+        if record_type == '0':
+
+            header = re.match(REGEX_DE_HEADER, file_contents_line)
+            if not header:
+                raise Exception('Invalid record format - de header')
+
+        elif record_type in ('1', '2', '3'):
+
+            # validate/get the detail record fields
+            detail = re.match(REGEX_DE_DETAIL, file_contents_line)
+            if not detail:
+                raise Exception('Invalid record format - de detail')
+
+            # add details to data element
+            message = Message()
+            message.data = header.groupdict()
+            message.data.update(detail.groupdict())
+
+            # build generic transaction record
+            _build_generic_transaction(message)
+
+            # add message to output list
             output_records.append(message.get_dict())
-        if record_type == '7':
+
+        elif record_type == '7':
             pass
+        else:
+            raise Exception('Invalid record type - [{}]'.format(record_type))
 
     return output_records
+
+
+def _build_generic_transaction(message):
+    message.collection['format'] = {'type': 'direct_entry', 'version': 1}
+    message.tran_type = 'transfer'
+    message.tran_amount = int(message.data['amount'])
+    message.tran_amount_exponent = 2
+    message.tran_description = 'direct entry'
+    message.payment_date = datetime.today()
+    message.add_source_item(
+        'account',
+        message.data['bsb_number'],
+        message.data['account_number'],
+        int(message.data['amount']),
+        message.data['lodgement_ref']
+    )
+    message.add_destination_item(
+        'account',
+        message.data['trace_bsb_number'],
+        message.data['trace_account_number'],
+        int(message.data['amount']),
+        message.data['name_of_remitter']
+    )
 
 
 def is_message_ok(message_format):
@@ -108,8 +133,8 @@ def is_message_ok(message_format):
     check that message type and version is correct
     """
     LOGGER.debug(message_format)
-    if (message_format['version'] == 1 and
-       message_format['type'] == 'direct_entry'):
+    if (message_format['type'] == 'direct_entry' and
+        message_format['version'] == 1):
         return True
     return False
 
@@ -129,12 +154,3 @@ def route_rule_direct_entry_bsb(message, bsb_regex):
     if re.match(bsb_regex, message['data']['bsb_number']):
         return True
     return False
-
-
-def slices(s, *args):
-    position = 0
-    return_vals = []
-    for length in args:
-        return_vals.append(s[position:position + length])
-        position += length
-    return return_vals
