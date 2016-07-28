@@ -10,7 +10,7 @@ LOGGER = logging.getLogger(__name__)
 
 
 class MessageTypeDirectEntryTestCase(unittest.TestCase):
-    def test_file_to_dict(self):
+    def test_file_to_dict_multi_header_ok(self):
         file_content = (
             u"0                 01SUN       MR DELOSA PTY LTD---------123456PAYROLL PAYM011216                                        \n"
             u"1484-799123456789 530000000123ACCOUNT TITLE1------------------LODGEMENT REFERENC484-799987654321MR DELOSA PTY LT00000000\n"
@@ -76,6 +76,30 @@ class MessageTypeDirectEntryTestCase(unittest.TestCase):
             with StringIO(file_content) as file_io:
                 val = file_to_dict(file_io)
         self.assertEqual(exc.exception.args[0], 'Invalid record format - de header')
+
+    def test_file_to_dict_detail_without_header(self):
+        # start of file
+        file_content = (
+            u"1484-799123456789 530000000123ACCOUNT TITLE1------------------LODGEMENT REFERENC484-799987654321MR DELOSA PTY LT00000000\n"
+            u"7999-999            000000000100000000010000000001                        000001                                        \n"
+        )
+        with self.assertRaises(Exception) as exc:
+            with StringIO(file_content) as file_io:
+                val = file_to_dict(file_io)
+        self.assertEqual('Invalid record type - record_type=[1], last_record_type=[S]', exc.exception.args[0])
+
+        # middle of file
+        file_content = (
+            u"0                 01SUN       MR DELOSA PTY LTD---------123456PAYROLL PAYM011216                                        \n"
+            u"1484-799123456789 530000000123ACCOUNT TITLE1------------------LODGEMENT REFERENC484-799987654321MR DELOSA PTY LT00000000\n"
+            u"7999-999            000000000100000000010000000001                        000001                                        \n"
+            u"1484-799123456789 530000000123ACCOUNT TITLE1------------------LODGEMENT REFERENC484-799987654321MR DELOSA PTY LT00000000\n"
+            u"7999-999            000000000100000000010000000001                        000001                                        \n"
+        )
+        with self.assertRaises(Exception) as exc:
+            with StringIO(file_content) as file_io:
+                val = file_to_dict(file_io)
+        self.assertEqual('Invalid record type - record_type=[1], last_record_type=[7]', exc.exception.args[0])
 
 
 if __name__ == '__main__':
