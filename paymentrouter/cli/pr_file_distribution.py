@@ -27,11 +27,12 @@ class CommandArgs:
 pass_args = click.make_pass_decorator(CommandArgs, ensure=True)
 
 
+@click.command()
 @click.argument('config-file', type=click.File('r'))
 @click.option('--db-host', envvar='PR_DB_HOST', default='127.0.0.1')
 @click.option('--db-name', envvar='PR_DB_NAME', default='window')
 @pass_args
-def pr_file_collection(args, config_file, db_host, db_name):
+def pr_file_distribution(args, config_file, db_host, db_name):
     args.config_file = config_file
     args.db_host = db_host
     args.db_name = db_name

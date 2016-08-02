@@ -12,8 +12,9 @@ setup(
     ],
     entry_points={
         'console_scripts': [
-            'pr_file_collection = paymentrouter.cli.pr_file_collection:cli_entry'
-        ]
+            'pr_file_distribution = paymentrouter.cli.pr_file_distribution:pr_file_distribution',
+            'pr_file_collection = paymentrouter.cli.pr_file_collection:pr_file_collection',
+        ],
     },
     test_suite='tests'
 )
