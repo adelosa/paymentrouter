@@ -4,7 +4,7 @@ import logging
 
 from io import StringIO
 
-from paymentrouter.message_type.direct_entry_1 import file_to_dict
+from paymentrouter.message_type.direct_entry_1 import file_to_dict, dict_to_file
 
 LOGGER = logging.getLogger(__name__)
 
@@ -100,6 +100,33 @@ class MessageTypeDirectEntryTestCase(unittest.TestCase):
             with StringIO(file_content) as file_io:
                 val = file_to_dict(file_io)
         self.assertEqual('Invalid record type - record_type=[1], last_record_type=[7]', exc.exception.args[0])
+
+    def test_call_dict_to_file(self):
+        data = {
+            'data': {
+                    'record_type': '1',
+                    'reel_seq_num': '01',
+                    'name_fin_inst': 'SUN',
+                    'user_name': 'hello',
+                    'user_num': '123456',
+                    'file_desc': 'payroll',
+                    'date_for_process': '011216',
+                    'bsb_number': '484-799',
+                    'account_number': '123456789',
+                    'indicator': ' ',
+                    'tran_code': '53',
+                    'amount': '0000000200',  # $2.00
+                    'account_title': 'account title',
+                    'lodgement_ref': 'lodgement ref',
+                    'trace_bsb_number': '484-799',
+                    'trace_account_number': '123456789',
+                    'name_of_remitter': 'MR DELOSA',
+                    'withholding_tax_amount': '0000000000',
+                },
+            }
+
+        dict_to_file([data])
+
 
 
 if __name__ == '__main__':

@@ -22,7 +22,7 @@ Dictionary format for direct_entry
         'trace_bsb_number': '484-799',
         'trace_account_number': '123456789',
         'name_of_remitter': 'MR DELOSA',
-        'amount_of_withholding_tax': '0000000000',
+        'withholding_tax_amount': '0000000000',
     },
 }
 """
@@ -104,6 +104,44 @@ def file_to_dict(file_handle):
         last_record_type = record_type
 
     return output_records
+
+
+def dict_to_file(data):
+    """
+    creates file format from transaction records
+    :param data: list of dicts
+    :return: file stream
+    """
+
+    record_format = (
+        "0{space:17}" +
+        "{data[reel_seq_num]:2}" +
+        "{data[name_fin_inst]:3}{space:7}" +
+        "{data[user_name]:26}" +
+        "{data[user_num]:6}" +
+        "{data[file_desc]:12}" +
+        "{data[date_for_process]:6}{space:40}\n" +
+        "{data[record_type]:1}" +
+        "{data[bsb_number]:7}" +
+        "{data[account_number]:9}" +
+        "{data[indicator]:1}" +
+        "{data[tran_code]:2}" +
+        "{data[amount]:10}" +
+        "{data[account_title]:32}" +
+        "{data[lodgement_ref]:18}" +
+        "{data[trace_bsb_number]:7}" +
+        "{data[trace_account_number]:9}" +
+        "{data[name_of_remitter]:16}" +
+        "{data[withholding_tax_amount]:8}"
+    )
+
+    print("record_format={}".format(record_format))
+    for tran in data:
+        tran.update({'space': ' '})
+        print(tran)
+        print("         !"*12)
+        print("1234567890"*12)
+        print("{}|<<<".format(record_format.format(**tran)))
 
 
 def build_transaction(header, detail):
