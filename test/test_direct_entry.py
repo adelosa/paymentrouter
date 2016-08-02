@@ -53,7 +53,7 @@ class MessageTypeDirectEntryTestCase(unittest.TestCase):
         with self.assertRaises(Exception) as exc:
             with StringIO(file_content) as file_io:
                 val = file_to_dict(file_io)
-        print(exc.msg)
+        self.assertEqual(exc.exception.args[0], 'Invalid record type - record_type=[x], last_record_type=[S]')
 
     def test_file_to_dict_bad_detail_record_data(self):
         file_content = (
@@ -126,7 +126,6 @@ class MessageTypeDirectEntryTestCase(unittest.TestCase):
             }
 
         dict_to_file([data])
-
 
 
 if __name__ == '__main__':
