@@ -8,7 +8,7 @@ logging.basicConfig(format='%(levelname)s:%(module)s:%(lineno)d:%(message)s', le
 
 
 def minimum_amount_routing(message, minimum_amount):
-    if message['data']['amount'] < minimum_amount:
+    if message['amount'] < minimum_amount:
         return True
     return False
 
@@ -44,16 +44,8 @@ class MessageRouterTestCase(unittest.TestCase):
 
     def test_less_than_100(self):
         tran = {
-            'collection': {
-                'format': {
-                    'type': 'direct_entry',
-                    'version': 1,
-                },
-            },
-            'data': {
-                'amount': 99,
-                'bsb_number': '484-799',
-            }
+            'amount': 99,
+            'bsb_number': '484-799',
         }
 
         selected_queue = self.router.get_message_output_queue(tran)
@@ -61,16 +53,8 @@ class MessageRouterTestCase(unittest.TestCase):
 
     def test_between_100_and_200(self):
         tran = {
-            'collection': {
-                'format': {
-                    'type': 'direct_entry',
-                    'version': 1,
-                },
-            },
-            'data': {
-                'amount': 101,
-                'bsb_number': '484-799',
-            }
+            'amount': 101,
+            'bsb_number': '484-799',
         }
 
         selected_queue = self.router.get_message_output_queue(tran)
@@ -78,16 +62,9 @@ class MessageRouterTestCase(unittest.TestCase):
 
     def test_greater_than_200(self):
         tran = {
-            'collection': {
-                'format': {
-                    'type': 'direct_entry',
-                    'version': 1,
-                },
-            },
-            'data': {
-                'amount': 201,
-                'bsb_number': '111-111',
-            }
+            'version': 1,
+            'amount': 201,
+            'bsb_number': '111-111',
         }
 
         selected_queue = self.router.get_message_output_queue(tran)
@@ -95,16 +72,9 @@ class MessageRouterTestCase(unittest.TestCase):
 
     def test_over_200_onus_tran(self):
         tran = {
-            'collection': {
-                'format': {
-                    'type': 'direct_entry',
-                    'version': 1,
-                },
-            },
-            'data': {
-                'amount': 201,
-                'bsb_number': '484-799',
-            }
+            'version': 1,
+            'amount': 201,
+            'bsb_number': '484-799',
         }
 
         selected_queue = self.router.get_message_output_queue(tran)

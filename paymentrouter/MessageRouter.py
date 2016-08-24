@@ -28,6 +28,9 @@ LOGGER = logging.getLogger(__name__)
 
 
 class MessageRouter:
+    """
+    determine queue to route message to based on message format and rules
+    """
 
     output_routing_rules = OrderedDict()
 

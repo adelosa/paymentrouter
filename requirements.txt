@@ -1,3 +1,5 @@
 click
 mock
 peewee
+mongoengine
+mongomock

@@ -3,13 +3,21 @@ try:
 except ImportError:
     from distutils.core import setup
 
+requirements = [
+    'Click', 'peewee', 'mongoengine'
+]
+
+test_requirements = [
+    'mongomock', 'mock'
+]
+
+
 setup(
     name='paymentrouter',
     version='0.1',
     packages=['paymentrouter'],
-    install_requires=[
-        'Click', 'mock', 'peewee', 'pymongo'
-    ],
+    install_requires=requirements,
+    test_requirements=test_requirements,
     entry_points={
         'console_scripts': [
             'pr_file_distribution = paymentrouter.cli.pr_file_distribution:pr_file_distribution',

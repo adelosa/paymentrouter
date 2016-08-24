@@ -4,35 +4,31 @@ direct entry format
 Dictionary format for direct_entry
 ----------------------------------
 {
-    'data': {
-        'record_type': '1',
-        'reel_seq_num': '01',
-        'name_fin_inst': 'SUN',
-        'user_name': 'hello',
-        'user_num': '123456',
-        'file_desc': 'payroll',
-        'date_for_process': '011216',
-        'bsb_number': '484-799',
-        'account_number': '123456789',
-        'indicator': ' ',
-        'tran_code': '53',
-        'amount': '0000000200',  # $2.00
-        'account_title': 'account title',
-        'lodgement_ref': 'lodgement ref',
-        'trace_bsb_number': '484-799',
-        'trace_account_number': '123456789',
-        'name_of_remitter': 'MR DELOSA',
-        'withholding_tax_amount': '00000000',
-    },
+    'version': 1,
+    'record_type': '1',
+    'reel_seq_num': '01',
+    'name_fin_inst': 'SUN',
+    'user_name': 'hello',
+    'user_num': '123456',
+    'file_desc': 'payroll',
+    'date_for_process': '011216',
+    'bsb_number': '484-799',
+    'account_number': '123456789',
+    'indicator': ' ',
+    'tran_code': '53',
+    'amount': '0000000200',  # $2.00
+    'account_title': 'account title',
+    'lodgement_ref': 'lodgement ref',
+    'trace_bsb_number': '484-799',
+    'trace_account_number': '123456789',
+    'name_of_remitter': 'MR DELOSA',
+    'withholding_tax_amount': '00000000',
 }
 """
 import os
 import logging
 import re
 from io import StringIO
-from datetime import datetime
-
-from paymentrouter.Message import Message
 
 
 LOGGER = logging.getLogger(__name__)
@@ -93,7 +89,11 @@ def file_to_dict(file_handle):
                 raise Exception('Invalid record format - de detail')
 
             # build transaction record
-            output_record = build_transaction(header, detail)
+            LOGGER.debug("Creating OUTPUT DICT Direct entry\n%s\n%s", header.groupdict(), detail.groupdict())
+            output_record = {'version': 1}
+            output_record.update(header.groupdict())
+            output_record.update(detail.groupdict())
+            LOGGER.debug("%s", output_record)
 
             # add message to output list
             output_records.append(output_record)
@@ -140,26 +140,26 @@ def dict_to_file(data):
     record_format = (
         u'0' +
         u' ' * 17 +
-        u'{data[reel_seq_num]:2.2}' +
-        u'{data[name_fin_inst]:3}' +
+        u'{reel_seq_num:2.2}' +
+        u'{name_fin_inst:3}' +
         u' ' * 7 +
-        u'{data[user_name]:26.26}' +
-        u'{data[user_num]:6.6}' +
-        u'{data[file_desc]:12.12}' +
-        u'{data[date_for_process]:6.6}' +
+        u'{user_name:26.26}' +
+        u'{user_num:6.6}' +
+        u'{file_desc:12.12}' +
+        u'{date_for_process:6.6}' +
         u' ' * 40 +
-        u'{data[record_type]:1.1}' +
-        u'{data[bsb_number]:7.7}' +
-        u'{data[account_number]:9.9}' +
-        u'{data[indicator]:1.1}' +
-        u'{data[tran_code]:2.2}' +
-        u'{data[amount]:10.10}' +
-        u'{data[account_title]:32.32}' +
-        u'{data[lodgement_ref]:18.18}' +
-        u'{data[trace_bsb_number]:7.7}' +
-        u'{data[trace_account_number]:9.9}' +
-        u'{data[name_of_remitter]:16.16}' +
-        u'{data[withholding_tax_amount]:8.8}'
+        u'{record_type:1.1}' +
+        u'{bsb_number:7.7}' +
+        u'{account_number:9.9}' +
+        u'{indicator:1.1}' +
+        u'{tran_code:2.2}' +
+        u'{amount:10.10}' +
+        u'{account_title:32.32}' +
+        u'{lodgement_ref:18.18}' +
+        u'{trace_bsb_number:7.7}' +
+        u'{trace_account_number:9.9}' +
+        u'{name_of_remitter:16.16}' +
+        u'{withholding_tax_amount:8.8}'
     )
 
     LOGGER.debug('record_format={}'.format(record_format))
@@ -179,10 +179,10 @@ def dict_to_file(data):
             output_list.append(tran[:120])
             last_header = tran[:120]
 
-        if data['data']['tran_code'] == u'13':
-            totals[TOTAL_CREDITS] += int(data['data']['amount'])
+        if data['tran_code'] == u'13':
+            totals[TOTAL_CREDITS] += int(data['amount'])
         else:
-            totals[TOTAL_DEBITS] += int(data['data']['amount'])
+            totals[TOTAL_DEBITS] += int(data['amount'])
         totals[TOTAL_ITEMS] += 1
         output_list.append(tran[120:])
 
@@ -199,46 +199,12 @@ def dict_to_file(data):
     return output_stream
 
 
-def build_transaction(header, detail):
-
-    message = Message()
-
-    message.data = header.groupdict()
-    message.data.update(detail.groupdict())
-
-    message.collection['format'] = {'type': 'direct_entry', 'version': 1}
-    message.tran_type = 'transfer'
-    message.tran_amount = int(message.data['amount'])
-    message.tran_amount_exponent = 2
-    message.tran_description = 'direct entry'
-    message.payment_date = datetime.today()
-
-    message.add_source_item(
-        'account',
-        message.data['bsb_number'],
-        message.data['account_number'],
-        int(message.data['amount']),
-        message.data['lodgement_ref']
-    )
-
-    message.add_destination_item(
-        'account',
-        message.data['trace_bsb_number'],
-        message.data['trace_account_number'],
-        int(message.data['amount']),
-        message.data['name_of_remitter']
-    )
-
-    return message.get_dict()
-
-
-def is_message_ok(message_format):
+def is_message_version_ok(message):
     """
     check that message type and version is correct
     """
-    LOGGER.debug(message_format)
-    if (message_format['type'] == 'direct_entry' and
-       message_format['version'] == 1):
+    LOGGER.debug(message)
+    if message.get('version', 0) == 1:
         return True
     return False
 
@@ -251,10 +217,10 @@ def route_rule_direct_entry_bsb(message, bsb_regex):
     :return: Boolean - True if rule matched
     """
     LOGGER.debug('route_rule_direct_entry_bsb:%s', message)
-    if not is_message_ok(message['collection']['format']):
+    if not is_message_version_ok(message):
         LOGGER.warn('Rule not processed as message wrong format or version')
         return False
 
-    if re.match(bsb_regex, message['data']['bsb_number']):
+    if re.match(bsb_regex, message['bsb_number']):
         return True
     return False
