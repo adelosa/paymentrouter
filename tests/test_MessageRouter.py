@@ -1,6 +1,6 @@
 from __future__ import absolute_import
 import unittest
-from paymentrouter.MessageRouter import MessageRouter
+from paymentrouter.MessageRouter import MessageRouter, get_format_module_name
 
 import logging
 
@@ -79,6 +79,11 @@ class MessageRouterTestCase(unittest.TestCase):
 
         selected_queue = self.router.get_message_output_queue(tran)
         self.assertEqual('de_onus', selected_queue)
+
+    def test_get_format_module_name(self):
+        mod_name = get_format_module_name({'name': 'my_format', 'version': 5})
+        self.assertEqual(mod_name, 'paymentrouter.message_type.my_format_5')
+
 
 
 if __name__ == '__main__':

@@ -6,6 +6,7 @@ process incoming file based payments
 ## config json file format.
 
 {
+    "source: 'RBA',
     "format": {
         "name": "direct_entry",
         "version": 1
@@ -38,10 +39,8 @@ from datetime import datetime
 
 import click
 from mongoengine import connect
-from paymentrouter.MessageRouter import MessageRouter
-from paymentrouter.model.Message import (
-    Message, MessageFormat, MessageCollection, MessageDistribution
-)
+from paymentrouter.MessageRouter import MessageRouter, get_format_module_function, get_format_module_name
+from paymentrouter.model.Message import Message, build_message
 
 LOGGER = logging.getLogger(__name__)
 
@@ -65,17 +64,6 @@ def load_json_config(config_file_handle):
     return json.load(config_file_handle)
 
 
-def get_format_module_name(input_format):
-    """
-    determine the module name from the input_format
-    :param input_format: dict with name, version keys
-    :return:
-    """
-    return '.'.join(
-        ['paymentrouter', 'message_type', input_format['name']+'_'+str(input_format['version'])]
-    )
-
-
 def convert_input(input_format, input_file_handle):
     """
     convert file to dict format based on format.name and format.version value
@@ -87,9 +75,7 @@ def convert_input(input_format, input_file_handle):
     :param input_file_handle: file handle to input
     :return: dict containing file records
     """
-    mod_name = get_format_module_name(input_format)
-    mod = __import__(mod_name, fromlist=['file_to_dict'])
-    func = getattr(mod, 'file_to_dict')
+    func = get_format_module_function(input_format, 'file_to_dict')
     return func(input_file_handle)
 
 
@@ -122,45 +108,37 @@ def write_to_mongo(input_records, db_host, db_name):
 
     Message.objects.insert(input_records)
 
-    # get the queues allocated in the input_dict
-    # queues = set([item['queue'] for item in input_dict])
-    #
-    # # write contents of each queue to collection
-    # for queue in queues:
-    #     queue_dict_gen = filter(lambda d: d['queue'] == queue, input_dict)
-    #     # db_client[queue].insert_many(list(queue_dict_gen))
 
-
-def create_records(input_dict, input_format, routing):
+def create_records(input_dict, config):
     """
     formats mongoengine record from transaction
     :param input_dict: list of dicts containing data
-    :param input_format: format dict {'type': x, 'version': 1}
-    :param routing: route rules dict
+    :param config: json job config
     :return: list of mongoengine documents
     """
     router = MessageRouter()
-    router.output_routing_rules = routing
+    router.output_routing_rules = config['routing']
+
+    output_template = {
+        'source': config['source'],
+        'format': config['format']['name'],
+        'version': config['format']['version']
+    }
 
     output_records = []
     for input_record in input_dict:
+
+        # determine queue to route to
         queue = router.get_message_output_queue(
             input_record,
-            default_rule_module=get_format_module_name(input_format)
+            default_rule_module=get_format_module_name(config['format'])
         )
-        output_record = Message(
-            collection=MessageCollection(
-                source='???',
-                format=MessageFormat(
-                    name=input_format['name'],
-                    version=input_format['version']
-                ),
-                data=input_record
-            ),
-            distribution=MessageDistribution(
-                queue=queue
-            ),
-            payment_date=datetime.today()
+        # build message
+        output_record = build_message(
+            data=input_record,
+            queue=queue,
+            template=output_template,
+            payment_date=datetime.today().date()
         )
         output_records.append(output_record)
 
@@ -182,7 +160,7 @@ def run(args):
     LOGGER.debug("BEFORE: file_dict=%s", file_dict)
 
     # create transaction documents
-    records = create_records(file_dict, config['format'], config['routing'])
+    records = create_records(file_dict, config)
 
     # write the trans to mongo using queue = collection
     write_to_mongo(records, args.db_host, args.db_name)

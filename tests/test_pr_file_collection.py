@@ -7,7 +7,7 @@ import logging
 from click.testing import CliRunner
 
 from paymentrouter.cli.pr_file_collection import (
-    convert_input, route_items, get_format_module_name, pr_file_collection, create_records
+    convert_input, route_items, pr_file_collection, create_records
 )
 
 logging.basicConfig(format='%(levelname)s:%(message)s', level=logging.DEBUG)
@@ -27,10 +27,6 @@ def dummy_rule(message, value):
 
 
 class PRFileCollectionTestCase(unittest.TestCase):
-
-    def test_get_format_module_name(self):
-        mod_name = get_format_module_name({'name': 'my_format', 'version': 5})
-        self.assertEqual(mod_name, 'paymentrouter.message_type.my_format_5')
 
     @mock.patch('paymentrouter.message_type.direct_entry_1.file_to_dict', side_effect=file_to_dict)
     def test_convert_input(self, mock_message_type):
@@ -71,18 +67,18 @@ class PRFileCollectionTestCase(unittest.TestCase):
         'paymentrouter.message_type.direct_entry_1.route_rule_direct_entry_bsb',
         side_effect=dummy_rule)
     def test_create_records(self, dummy_rule):
-        routing = {
-            "rule1": {
-                "rule_function": "route_rule_direct_entry_bsb",
-                "rule_value": 1,
-                "queue": "queue_1"
+        config = {
+            "source": 'ABC',
+            "format": {'name': 'direct_entry', 'version': 1},
+            "routing": {
+                "rule1": {
+                    "rule_function": "route_rule_direct_entry_bsb",
+                    "rule_value": 1,
+                    "queue": "queue_1"
+                },
             },
         }
-        output = create_records(
-            [{'value': 1}, {'value': 0}],
-            {'name': 'direct_entry', 'version': 1},
-            routing
-        )
+        output = create_records([{'value': 1}, {'value': 0}], config)
         self.assertEqual(2, len(output))
         self.assertEqual('queue_1', output[0].distribution.queue)
         self.assertEqual('default', output[1].distribution.queue)
@@ -96,6 +92,7 @@ class PRFileCollectionTestCase(unittest.TestCase):
     def test_cli_run(self):
         config = """
 {
+    "source": "RBA",
     "format": {
         "name": "direct_entry",
         "version": 1

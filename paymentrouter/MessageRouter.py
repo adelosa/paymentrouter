@@ -77,3 +77,20 @@ class MessageRouter:
                 return self.output_routing_rules[rule_id]['queue']
 
         return "default"  # default queue when no rules match
+
+
+def get_format_module_name(input_format):
+    """
+    determine the module name from the input_format
+    :param input_format: dict with name, version keys
+    :return:
+    """
+    return '.'.join(
+        ['paymentrouter', 'message_type', input_format['name']+'_'+str(input_format['version'])]
+    )
+
+
+def get_format_module_function(format_name, function_name):
+    mod_name = get_format_module_name(format_name)
+    mod = __import__(mod_name, fromlist=[function_name])
+    return getattr(mod, function_name)

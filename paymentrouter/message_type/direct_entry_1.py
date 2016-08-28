@@ -4,7 +4,6 @@ direct entry format
 Dictionary format for direct_entry
 ----------------------------------
 {
-    'version': 1,
     'record_type': '1',
     'reel_seq_num': '01',
     'name_fin_inst': 'SUN',
@@ -199,16 +198,6 @@ def dict_to_file(data):
     return output_stream
 
 
-def is_message_version_ok(message):
-    """
-    check that message type and version is correct
-    """
-    LOGGER.debug(message)
-    if message.get('version', 0) == 1:
-        return True
-    return False
-
-
 def route_rule_direct_entry_bsb(message, bsb_regex):
     """
     check for BSB that matches regex provided
@@ -217,10 +206,6 @@ def route_rule_direct_entry_bsb(message, bsb_regex):
     :return: Boolean - True if rule matched
     """
     LOGGER.debug('route_rule_direct_entry_bsb:%s', message)
-    if not is_message_version_ok(message):
-        LOGGER.warn('Rule not processed as message wrong format or version')
-        return False
-
     if re.match(bsb_regex, message['bsb_number']):
         return True
     return False

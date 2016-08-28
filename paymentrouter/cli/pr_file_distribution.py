@@ -1,7 +1,7 @@
 """
 pr_file_distribution
 
-For a given destination queue, get all payments and extract in format
+For a given destination queue, get all unprocessed payments and extract in format
 
 ## config json file format.
 
@@ -21,7 +21,7 @@ import datetime
 import click
 from mongoengine import connect, Q
 
-from paymentrouter.model.Message import Message
+from paymentrouter.model.Message import Message, MessageFormat
 
 LOGGER = logging.getLogger(__name__)
 
@@ -49,20 +49,37 @@ def run(args):
     config = load_json_config(args.config_file)
     format_info = config['format']
 
-    # get all undistributed trans for queue that are not in the output format from config
     connect(args.db_name, host=args.db_host)
+
+    # get all undistributed trans for queue that are not in the output format from config
     messages = Message.objects(
         Q(distribution__queue=config['queue']) &
         Q(status='ready') &
-        Q(payment_date__lte=datetime.datetime.today()) & (
+        Q(payment_date__lte=datetime.datetime.today()) & (  # TODO add system date config
             Q(collection__format__name__ne=format_info['name']) |
             Q(collection__format__version__ne=format_info['version'])
         )
     )
+
+    message_format = MessageFormat(name=format_info['name'], version=format_info['version'])
+
     # for each transaction, convert tran to output format - same record
-    LOGGER.debug("NumberOfEntries:%s", len(messages))
+    LOGGER.debug("Items requiring bridging: %s", len(messages))
+
+    for message in messages:
+        # TODO add message.distribution.data in requested format
+        message.distribution.data = message.collection.data
+        # add message.distribution.format from config
+        message.distribution.format = message_format
+        # save the message
+        message.save()
 
     # get all undistributed trans for queue
+    messages = Message.objects(
+        Q(distribution__queue=config['queue']) &
+        Q(status='ready') &
+        Q(payment_date__lte=datetime.datetime.today())
+    )
 
     # call dict_to_file for output format provided in config
 
@@ -79,3 +96,4 @@ def pr_file_distribution(args, config_file, db_host, db_name):
     args.db_host = db_host
     args.db_name = db_name
     run()
+
