@@ -1,6 +1,7 @@
 from __future__ import absolute_import
 import unittest
 import logging
+import json
 
 from io import StringIO
 
@@ -21,24 +22,25 @@ class MessageTypeJsonTestCase(unittest.TestCase):
         with StringIO(file_content) as file_io:
             vals = file_to_dict(file_io)
 
-        print(str(len(vals)) + "\n" + str(vals))
+        self.assertEqual(2, len(vals))
+
+        expected_vals = [
+            {"value1": 1, "value2": "two"},
+            {"value1": 2, "value2": "three"}
+        ]
+        self.assertEqual(expected_vals, vals)
 
     def test_dict_to_file(self):
-        record = [
-            {'value1': 1, 'value2': 'two'},
-            {'value1': 2, 'value2': 'three'},
+        records = [
+            {'value1': 4, 'value2': 'two'},
+            {'value1': 5, 'value2': 'three'},
         ]
-        file_handle = dict_to_file(record)
-        assert file_handle is not None
-        output = file_handle.readlines()
-        print("1>>>>>>>>>>" + str(len(output)))
-        for line in output:
-            print("2>>>>>>>>>>" + str(line))
+        file_handle = dict_to_file(records)
+        self.assertIsNotNone(file_handle)
 
-    def test_values(self):
-        print(type('value'))
-        print(type(123))
-        print(type(123.456))
+        # read the file back to dict using JSON to make sure equal
+        output_records = json.load(file_handle)
+        self.assertEqual(records, output_records)
 
 
 if __name__ == '__main__':
