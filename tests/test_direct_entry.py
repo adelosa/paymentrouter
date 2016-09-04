@@ -4,8 +4,9 @@ import logging
 import copy
 import re
 from io import StringIO
+from datetime import date
 
-from paymentrouter.message_type.direct_entry_1 import file_to_dict, dict_to_file
+from paymentrouter.message_type.direct_entry_1 import file_to_dict, dict_to_file, convert_json_1
 
 LOGGER = logging.getLogger(__name__)
 
@@ -153,6 +154,84 @@ class MessageTypeDirectEntryTestCase(unittest.TestCase):
         # check record type order is correct
         record_sequence = ''.join([line[0:1] for line in output])
         self.assertTrue(re.match(r'^(0([123])*7)*$', record_sequence))
+
+    def test_convert_json_1_credit(self):
+        # check that convert function works for json format
+        expected_direct_entry_dict = {
+            'record_type': '1',
+            'reel_seq_num': '01',
+            'name_fin_inst': 'SUN',
+            'user_name': 'hello',
+            'user_num': '123456',
+            'file_desc': 'payroll',
+            'date_for_process': '011216',
+            'bsb_number': '484-799',
+            'account_number': '123456789',
+            'indicator': ' ',
+            'tran_code': '53',
+            'amount': '0000000200',  # $2.00
+            'account_title': 'account title',
+            'lodgement_ref': 'lodgement ref',
+            'trace_bsb_number': '484-799',
+            'trace_account_number': '123456789',
+            'name_of_remitter': 'MR DELOSA',
+            'withholding_tax_amount': '00000000',
+        }
+
+        json_dict = {
+            'to_routing': '484-799',
+            'to_name': 'account title',
+            'to_account': '123456789',
+            'from_account': '123456789',
+            'amount': 200,
+            'from_name': 'MR DELOSA',
+            'from_routing': '484-799',
+            'tran_type': 'cr',
+            'to_description': 'lodgement ref',
+            'post_date': date(2016, 12, 1)}
+
+        direct_entry_dict = convert_json_1(json_dict)
+        self.maxDiff = None
+        self.assertEqual(expected_direct_entry_dict, direct_entry_dict)
+
+    def test_convert_json_1_debit(self):
+        # check that convert function works for json format
+        expected_direct_entry_dict = {
+            'record_type': '1',
+            'reel_seq_num': '01',
+            'name_fin_inst': 'SUN',
+            'user_name': 'hello',
+            'user_num': '123456',
+            'file_desc': 'payroll',
+            'date_for_process': '011216',
+            'bsb_number': '484-799',
+            'account_number': '123456789',
+            'indicator': ' ',
+            'tran_code': '13',
+            'amount': '0000000200',  # $2.00
+            'account_title': 'account title',
+            'lodgement_ref': 'lodgement ref',
+            'trace_bsb_number': '484-799',
+            'trace_account_number': '123456789',
+            'name_of_remitter': 'MR DELOSA',
+            'withholding_tax_amount': '00000000',
+        }
+
+        json_dict = {
+            'to_routing': '484-799',
+            'to_name': 'account title',
+            'to_account': '123456789',
+            'from_account': '123456789',
+            'amount': 200,
+            'from_name': 'MR DELOSA',
+            'from_routing': '484-799',
+            'tran_type': 'db',
+            'to_description': 'lodgement ref',
+            'post_date': date(2016, 12, 1)}
+
+        direct_entry_dict = convert_json_1(json_dict)
+        self.maxDiff = None
+        self.assertEqual(expected_direct_entry_dict, direct_entry_dict)
 
 
 if __name__ == '__main__':

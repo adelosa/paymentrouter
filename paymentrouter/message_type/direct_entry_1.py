@@ -60,7 +60,7 @@ def file_to_dict(file_handle):
     """
     convert file to list of dicts, each dict representing a record.
     :param file_handle:
-    :return:
+    :return: list of dicts in format
     """
     file_contents = file_handle.readlines()
     LOGGER.debug('file contents \n%s', file_contents)
@@ -209,3 +209,39 @@ def route_rule_direct_entry_bsb(message, bsb_regex):
     if re.match(bsb_regex, message['bsb_number']):
         return True
     return False
+
+
+def convert_json_1(json):
+    """
+    convert json to direct entry format
+    :param json: dict in json message format
+    :return: dict in direct_entry format
+    """
+
+    # TODO Add batch details to json format
+    # TODO Get default direct entry batch details if not provided
+
+    LOGGER.debug('convert json message:%s', json)
+    direct_entry = {
+        'record_type': '1',
+        'reel_seq_num': '01',
+        'name_fin_inst': 'SUN',
+        'user_name': 'hello',
+        'user_num': '123456',
+        'file_desc': 'payroll',
+        'date_for_process': json['post_date'].strftime('%d%m%y'),
+        'bsb_number': json['to_routing'],
+        'account_number': json['to_account'],
+        'indicator': ' ',
+        'tran_code': '13' if json['tran_type'] == 'db' else '53',
+        'amount': '{amount:010}'.format(amount=json['amount']),  # $2.00
+        'account_title': json['to_name'],
+        'lodgement_ref': json['to_description'],
+        'trace_bsb_number': json['from_routing'],
+        'trace_account_number': json['from_account'],
+        'name_of_remitter': json['from_name'],
+        'withholding_tax_amount': '00000000',
+    }
+
+
+    return direct_entry
