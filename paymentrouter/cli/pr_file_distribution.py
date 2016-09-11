@@ -21,6 +21,7 @@ import datetime
 import click
 from mongoengine import connect, Q
 
+from paymentrouter.MessageRouter import get_format_module_function
 from paymentrouter.model.Message import Message, MessageFormat
 
 LOGGER = logging.getLogger(__name__)
@@ -40,6 +41,19 @@ def load_json_config(config_file_handle):
     :return: dict config
     """
     return json.load(config_file_handle)
+
+
+def bridge_data(collection_format, distribution_format, collection_data):
+    """
+    converts data from collection to distribution format.
+    logic for this will reside in distribution message type module
+    :param collection_format:
+    :param distribution_format:
+    :param collection_data:
+    :return:
+    """
+    func = get_format_module_function(distribution_format, 'convert_{0}_{1}'.format(collection_format['name'], collection_format['version']))
+    return func(collection_data)
 
 
 @pass_args
@@ -67,8 +81,9 @@ def run(args):
     LOGGER.debug("Items requiring bridging: %s", len(messages))
 
     for message in messages:
-        # TODO add message.distribution.data in requested format
-        message.distribution.data = message.collection.data
+
+        # bridge to new format if required
+        message.distribution.data = bridge_data(message.collection.format, format_info, message.collection.data)
         # add message.distribution.format from config
         message.distribution.format = message_format
         # save the message

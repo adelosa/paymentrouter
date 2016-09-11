@@ -30,7 +30,7 @@ class PRFileDistributionTestCase(unittest.TestCase):
         config = """
 {
     "format": {
-        "name": "direct_entry",
+        "name": "json",
         "version": 1
     },
     "queue": "on-us"
@@ -45,13 +45,50 @@ class PRFileDistributionTestCase(unittest.TestCase):
             'queue': 'on-us',
             'status': 'ready',
             'payment_date': date(2000, 1, 1),
-            'data': {'key': 'the value'}
+            'data': {
+                'key': 'the value'
+            }
         }
-
-        message = build_message(format_version=2, template=message_template)
 
         connect('test', host='mongomock://localhost')
         Message.drop_collection()
+
+        de_data = {
+            'record_type': '1',
+            'reel_seq_num': '01',
+            'name_fin_inst': 'SUN',
+            'user_name': 'hello',
+            'user_num': '123456',
+            'file_desc': 'payroll',
+            'date_for_process': '011216',
+            'bsb_number': '484-799',
+            'account_number': '123456789',
+            'indicator': ' ',
+            'tran_code': '53',
+            'amount': '0000000200',  # $2.00
+            'account_title': 'account title',
+            'lodgement_ref': 'lodgement ref',
+            'trace_bsb_number': '484-799',
+            'trace_account_number': '123456789',
+            'name_of_remitter': 'MR DELOSA',
+            'withholding_tax_amount': '00000000',
+        }
+
+        message = build_message(data=de_data, template=message_template)
+        message.save()
+        json_data = {
+            'from_account': '123456789',
+            'from_routing': '484-799',
+            'to_description': 'lodgement ref',
+            'from_name': 'MR DELOSA',
+            'tran_type': 'cr',
+            'to_name': 'account title',
+            'to_account': '123456789',
+            'to_routing': '484-799',
+            'amount': 200,
+            'post_date': date(2016, 12, 2)
+        }
+        message = build_message(data=json_data, format_name='json', template=message_template)
         message.save()
 
         runner = CliRunner()
@@ -65,6 +102,12 @@ class PRFileDistributionTestCase(unittest.TestCase):
 
         for message in Message.objects():
             print(repr(message))
-            print(message.distribution.format.name)
-            print(message.distribution.format.version)
-            print(message.distribution.data)
+            print(message.collection.format.name)
+            print(message.collection.format.version)
+            print(message.collection.data)
+            if message.distribution is not None:
+                # print(message.distribution.format.name)
+                # print(message.distribution.format.version)
+                print(message.distribution.data)
+            else:
+                print("no distribution data found!")
