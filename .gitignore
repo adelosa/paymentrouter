@@ -1,7 +1,9 @@
 
 .idea/
+dist/
+.tox/
 env/
-modeltestcase.db
+
 *.egg-info/
-*.iml
 **/__pycache__
+**.pyc
