@@ -13,7 +13,7 @@ if sys.version_info < (3, 4):
     requirements.append('enum34>=1.0.4')
 
 test_requirements = [
-    'mongomock', 'mock', 'testing.postgresql'
+    'mongomock', 'mock', 'testing.postgresql', 'psycopg2'
 ]
 
 
