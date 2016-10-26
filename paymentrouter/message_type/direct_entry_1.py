@@ -207,7 +207,9 @@ def route_rule_direct_entry_bsb(message, bsb_regex):
     """
     LOGGER.debug('route_rule_direct_entry_bsb:%s', message)
     if re.match(bsb_regex, message['bsb_number']):
+        LOGGER.debug('MATCHED "{}" using regex "{}"'.format(message['bsb_number'], bsb_regex))
         return True
+    LOGGER.debug('!NO MATCH on "{}" using regex "{}"'.format(message['bsb_number'], bsb_regex))
     return False
 
 
@@ -242,6 +244,5 @@ def convert_json_1(json):
         'name_of_remitter': json['from_name'],
         'withholding_tax_amount': '00000000',
     }
-
 
     return direct_entry

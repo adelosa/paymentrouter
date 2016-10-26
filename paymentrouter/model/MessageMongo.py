@@ -32,7 +32,7 @@ from mongoengine import (
 )
 
 
-class PPrintMixin:
+class PPrintMixin(object):
     def __str__(self):
         return '<{}: id={!r}>'.format(type(self).__name__, self.id)
 

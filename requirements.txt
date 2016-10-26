@@ -1,5 +1,6 @@
 click
 mock
-peewee
 mongoengine
 mongomock
+sqlalchemy
+testing.postgresql

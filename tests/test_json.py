@@ -1,10 +1,14 @@
 from __future__ import absolute_import
+
 import unittest
 import logging
 import json
 from datetime import datetime, date
 
-from io import StringIO
+try:
+    from StringIO import StringIO
+except ImportError:
+    from io import StringIO
 
 from paymentrouter.message_type.json_1 import file_to_dict, dict_to_file, convert_direct_entry_1, date_hook
 
@@ -20,8 +24,8 @@ class MessageTypeJsonTestCase(unittest.TestCase):
             {"value1": 2, "value2": "three"}
         ]
         """
-        with StringIO(file_content) as file_io:
-            vals = file_to_dict(file_io)
+        file_io = StringIO(file_content)
+        vals = file_to_dict(file_io)
 
         self.assertEqual(2, len(vals))
 

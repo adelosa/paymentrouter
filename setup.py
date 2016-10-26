@@ -1,14 +1,19 @@
+import sys
 try:
     from setuptools import setup
 except ImportError:
     from distutils.core import setup
 
 requirements = [
-    'Click', 'peewee', 'mongoengine'
+    'Click', 'mongoengine', 'sqlalchemy'
 ]
 
+if sys.version_info < (3, 4):
+    # Backport of Python 3.4 enums to earlier versions
+    requirements.append('enum34>=1.0.4')
+
 test_requirements = [
-    'mongomock', 'mock'
+    'mongomock', 'mock', 'testing.postgresql'
 ]
 
 

@@ -10,7 +10,7 @@ from click.testing import CliRunner
 from mongoengine import connect
 
 from paymentrouter.cli.pr_file_distribution import pr_file_distribution
-from paymentrouter.model.Message import Message, build_message
+from paymentrouter.model.MessageMongo import Message, build_message
 
 
 logging.basicConfig(format='%(levelname)s:%(message)s', level=logging.DEBUG)

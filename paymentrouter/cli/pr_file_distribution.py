@@ -22,7 +22,7 @@ import click
 from mongoengine import connect, Q
 
 from paymentrouter.MessageRouter import get_format_module_function
-from paymentrouter.model.Message import Message, MessageFormat
+from paymentrouter.model.MessageMongo import Message, MessageFormat
 
 LOGGER = logging.getLogger(__name__)
 
