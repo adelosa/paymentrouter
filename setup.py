@@ -5,7 +5,7 @@ except ImportError:
     from distutils.core import setup
 
 requirements = [
-    'Click', 'mongoengine', 'sqlalchemy'
+    'Click', 'mongoengine', 'sqlalchemy', 'alembic'
 ]
 
 if sys.version_info < (3, 4):
