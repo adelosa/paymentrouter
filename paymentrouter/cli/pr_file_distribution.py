@@ -52,7 +52,9 @@ def bridge_data(collection_format, distribution_format, collection_data):
     :param collection_data:
     :return:
     """
-    func = get_format_module_function(distribution_format, 'convert_{0}_{1}'.format(collection_format['name'], collection_format['version']))
+    func = get_format_module_function(
+        distribution_format, 'convert_{0}_{1}'.format(collection_format['name'], collection_format['version'])
+    )
     return func(collection_data)
 
 
@@ -111,4 +113,3 @@ def pr_file_distribution(args, config_file, db_host, db_name):
     args.db_host = db_host
     args.db_name = db_name
     run()
-

@@ -100,7 +100,9 @@ def file_to_dict(file_handle):
         elif record_type == '7' and last_record_type in ('1', '2', '3'):
             pass
         else:
-            raise Exception('Invalid record type - record_type=[{}], last_record_type=[{}]'.format(record_type, last_record_type))
+            raise Exception(
+                'Invalid record type - record_type=[{}], last_record_type=[{}]'.format(record_type, last_record_type)
+            )
 
         last_record_type = record_type
 
