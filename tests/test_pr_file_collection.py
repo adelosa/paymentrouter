@@ -4,17 +4,17 @@ import unittest
 import mock
 import logging
 
-from click.testing import CliRunner
-
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-
+from alembic.config import Config
+from alembic import command
+from click.testing import CliRunner
 import testing.postgresql
 
 from paymentrouter.cli.pr_file_collection import (
     convert_input, route_items, pr_file_collection, create_records
 )
-from paymentrouter.model.Transaction import Base, Transaction, TransactionStatus
+from paymentrouter.model.Transaction import Transaction, TransactionStatus
 
 logging.basicConfig(format='%(levelname)s:%(message)s', level=logging.DEBUG)
 
@@ -130,7 +130,10 @@ class PRFileCollectionTestCase(unittest.TestCase):
             print('  data directory={}'.format(postgresql.get_data_directory()))
 
             engine = create_engine(postgresql.url())
-            Base.metadata.create_all(engine)
+            alembic_cfg = Config("alembic.ini")
+            with engine.begin() as connection:
+                alembic_cfg.attributes['connection'] = connection
+                command.upgrade(alembic_cfg, "head")
 
             with runner.isolated_filesystem():
                 with open('test.json', 'w') as fp:
