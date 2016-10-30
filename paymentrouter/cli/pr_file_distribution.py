@@ -19,10 +19,12 @@ import logging
 import datetime
 
 import click
-from mongoengine import connect, Q
+from sqlalchemy import create_engine, or_
+from sqlalchemy.orm import sessionmaker
 
 from paymentrouter.MessageRouter import get_format_module_function
-from paymentrouter.model.MessageMongo import Message, MessageFormat
+from paymentrouter.model import dumps
+from paymentrouter.model.Transaction import Transaction, TransactionStatus
 
 LOGGER = logging.getLogger(__name__)
 
@@ -58,6 +60,18 @@ def bridge_data(collection_format, distribution_format, collection_data):
     return func(collection_data)
 
 
+def create_file(distribution_format, distribution_data):
+    """
+    converts data from collection to distribution format.
+    logic for this will reside in distribution message type module
+    :param distribution_format:
+    :param distribution_data:
+    :return:
+    """
+    func = get_format_module_function(distribution_format, 'dict_to_file')
+    return func(distribution_data)
+
+
 @pass_args
 def run(args):
 
@@ -65,51 +79,60 @@ def run(args):
     config = load_json_config(args.config_file)
     format_info = config['format']
 
-    connect(args.db_name, host=args.db_host)
+    engine = create_engine(args.db_url, echo=True, json_serializer=dumps)
+    Session = sessionmaker(bind=engine)
+    session = Session()
 
-    # get all undistributed trans for queue that are not in the output format from config
-    messages = Message.objects(
-        Q(distribution__queue=config['queue']) &
-        Q(status='ready') &
-        Q(payment_date__lte=datetime.datetime.today()) & (  # TODO add system date config
-            Q(collection__format__name__ne=format_info['name']) |
-            Q(collection__format__version__ne=format_info['version'])
-        )
-    )
+    # get all transactions ready to be processed for this queue
+    messages = session.query(Transaction).filter(
+        Transaction.queue == config['queue'],
+        Transaction.status == TransactionStatus.ready,
+        or_(Transaction.distribution_date <= datetime.datetime.today(),  # TODO add system date config
+            Transaction.distribution_date.is_(None)),
+    ).all()
 
-    message_format = MessageFormat(name=format_info['name'], version=format_info['version'])
-
-    # for each transaction, convert tran to output format - same record
-    LOGGER.debug("Items requiring bridging: %s", len(messages))
-
+    # set the distribution data
     for message in messages:
+        if (
+            message.collection_format_name != format_info['name'] or
+            message.collection_format_version != format_info['version']
+        ):
+            # bridge to new format if required
+            LOGGER.debug('format [{}]:[{}] != [{}]:[{}]'.format(
+                message.collection_format_name,
+                message.collection_format_version,
+                format_info['name'],
+                format_info['version'])
+            )
+            coll_format = {'name': message.collection_format_name, 'version': message.collection_format_version}
+            message.distribution_data = bridge_data(coll_format, format_info, message.collection_data)
+        else:
+            # just move the data across
+            message.distribution_data = message.collection_data
+        # add message.distribution.format info
+        message.distribution_format_name = format_info['name']
+        message.distribution_format_version = format_info['version']
 
-        # bridge to new format if required
-        message.distribution.data = bridge_data(message.collection.format, format_info, message.collection.data)
-        # add message.distribution.format from config
-        message.distribution.format = message_format
-        # save the message
-        message.save()
+    # save the messages
+    session.commit()
 
-    # get all undistributed trans for queue
-    messages = Message.objects(
-        Q(distribution__queue=config['queue']) &
-        Q(status='ready') &
-        Q(payment_date__lte=datetime.datetime.today())
-    )
+    # get all the distribution data records into a list
+    distribution_list = [message.distribution_data for message in messages]
 
     # call dict_to_file for output format provided in config
+    output_stream = create_file(format_info, distribution_list)
+
+    with open('./out-json.txt', mode='w') as outfile:
+        outfile.write(output_stream.read())
 
     # update all records to mark as processed
 
 
 @click.command()
 @click.argument('config-file', type=click.File('r'))
-@click.option('--db-host', envvar='PR_DB_HOST', default='127.0.0.1')
-@click.option('--db-name', envvar='PR_DB_NAME', default='paymentrouter')
+@click.option('--db-url', envvar='PR_DB_URL', default='postgresql://postgres@127.0.0.1/test')
 @pass_args
-def pr_file_distribution(args, config_file, db_host, db_name):
+def pr_file_distribution(args, config_file, db_url):
     args.config_file = config_file
-    args.db_host = db_host
-    args.db_name = db_name
+    args.db_url = db_url
     run()

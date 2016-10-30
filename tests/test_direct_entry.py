@@ -188,7 +188,8 @@ class MessageTypeDirectEntryTestCase(unittest.TestCase):
             'from_routing': '484-799',
             'tran_type': 'cr',
             'to_description': 'lodgement ref',
-            'post_date': date(2016, 12, 1)}
+            'post_date': date(2016, 12, 1).isoformat()
+            }
 
         direct_entry_dict = convert_json_1(json_dict)
         self.maxDiff = None
@@ -227,7 +228,7 @@ class MessageTypeDirectEntryTestCase(unittest.TestCase):
             'from_routing': '484-799',
             'tran_type': 'db',
             'to_description': 'lodgement ref',
-            'post_date': date(2016, 12, 1)}
+            'post_date': date(2016, 12, 1).isoformat()}
 
         direct_entry_dict = convert_json_1(json_dict)
         self.maxDiff = None

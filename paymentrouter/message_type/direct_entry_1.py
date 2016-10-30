@@ -24,9 +24,9 @@ Dictionary format for direct_entry
     'withholding_tax_amount': '00000000',
 }
 """
-import os
 import logging
 import re
+from datetime import datetime
 from io import StringIO
 
 
@@ -189,12 +189,10 @@ def dict_to_file(data):
 
     output_list.append(get_trailer(totals))
 
-    # add line endings
-    output_list = [line + os.linesep for line in output_list]
-
     # add to stream
     output_stream = StringIO()
-    output_stream.writelines(output_list)
+    # add line endings
+    output_stream.writelines('\n'.join(output_list))
     output_stream.seek(0)
 
     return output_stream
@@ -233,7 +231,7 @@ def convert_json_1(json):
         'user_name': 'hello',
         'user_num': '123456',
         'file_desc': 'payroll',
-        'date_for_process': json['post_date'].strftime('%d%m%y'),
+        'date_for_process': datetime.strptime(json['post_date'], '%Y-%m-%d').strftime('%d%m%y'),
         'bsb_number': json['to_routing'],
         'account_number': json['to_account'],
         'indicator': ' ',

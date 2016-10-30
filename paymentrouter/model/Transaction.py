@@ -5,10 +5,8 @@ import enum
 
 from sqlalchemy import Column, Integer, String, SmallInteger, Date, DateTime, Enum
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.ext.declarative import declarative_base
 
-
-Base = declarative_base()
+from paymentrouter.model import Base
 
 
 class TransactionStatus(enum.Enum):
