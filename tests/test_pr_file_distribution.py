@@ -2,16 +2,23 @@
 test cases for pr_file_distribution
 """
 from __future__ import absolute_import
+
 import unittest
 import logging
-from datetime import date
+import os
+from datetime import date, datetime
+import time
 
 from click.testing import CliRunner
-from mongoengine import connect
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from alembic import command
+from alembic.config import Config
+import testing.postgresql
 
+from paymentrouter.model import dumps
+from paymentrouter.model.Transaction import TransactionStatus, build_message
 from paymentrouter.cli.pr_file_distribution import pr_file_distribution
-from paymentrouter.model.Message import Message, build_message
-
 
 logging.basicConfig(format='%(levelname)s:%(message)s', level=logging.DEBUG)
 
@@ -30,84 +37,120 @@ class PRFileDistributionTestCase(unittest.TestCase):
         config = """
 {
     "format": {
-        "name": "json",
+        "name": "direct_entry",
         "version": 1
     },
     "queue": "on-us"
 }
         """
 
-        # add some data to mongo
+        # transaction template
         message_template = {
             'source': 'RBA',
-            'format_name': 'direct_entry',
-            'format_version': 1,
-            'queue': 'on-us',
-            'status': 'ready',
-            'payment_date': date(2000, 1, 1),
-            'data': {
-                'key': 'the value'
-            }
+            'status': TransactionStatus.ready,
+            'collection_format_name': 'direct_entry',
+            'collection_format_version': 1,
+            'collection_data': {},
+            'collection_datetime': datetime.today().date(),
+            'queue': 'default',
         }
 
-        connect('test', host='mongomock://localhost')
-        Message.drop_collection()
-
+        # direct entry data
         de_data = {
             'record_type': '1',
             'reel_seq_num': '01',
             'name_fin_inst': 'SUN',
-            'user_name': 'hello',
-            'user_num': '123456',
-            'file_desc': 'payroll',
+            'user_name': 'DE USER NAME',
+            'user_num': '654321',
+            'file_desc': 'DE FILE DESC',
             'date_for_process': '011216',
             'bsb_number': '484-799',
-            'account_number': '123456789',
+            'account_number': '111111111',
             'indicator': ' ',
             'tran_code': '53',
-            'amount': '0000000200',  # $2.00
-            'account_title': 'account title',
-            'lodgement_ref': 'lodgement ref',
+            'amount': '0000012345',  # $2.00
+            'account_title': 'DE ACCT TITLE',
+            'lodgement_ref': 'DE LODGE REF',
             'trace_bsb_number': '484-799',
-            'trace_account_number': '123456789',
-            'name_of_remitter': 'MR DELOSA',
+            'trace_account_number': '222222222',
+            'name_of_remitter': 'DE REMITTER NAME',
             'withholding_tax_amount': '00000000',
         }
 
-        message = build_message(data=de_data, template=message_template)
-        message.save()
+        # json payment data
         json_data = {
-            'from_account': '123456789',
+            'from_account': '987654321',
             'from_routing': '484-799',
-            'to_description': 'lodgement ref',
-            'from_name': 'MR DELOSA',
+            'to_description': 'JSON TO DESC',
+            'from_name': 'JSON FROM NAME',
             'tran_type': 'cr',
-            'to_name': 'account title',
-            'to_account': '123456789',
+            'to_name': 'JSON TO NAME',
+            'to_account': '333333333',
             'to_routing': '484-799',
-            'amount': 200,
+            'amount': 54321,
             'post_date': date(2016, 12, 2)
         }
-        message = build_message(data=json_data, format_name='json', template=message_template)
-        message.save()
 
-        runner = CliRunner()
-        with runner.isolated_filesystem():
-            with open('test.json', 'w') as fp:
-                fp.write(config)
-            result = runner.invoke(pr_file_distribution, ['test.json', '--db-name', 'test', '--db-host', "mongomock://localhost"], catch_exceptions=True)
-        LOGGER.debug("output:\n%s", result.output)
-        LOGGER.debug("exception:\n%s", result.exception)
-        self.assertEqual(0, result.exit_code)
+        tran_list = []
+        for tran_id in range(0, 1000, 2):
+            tran_list.append(
+                build_message(
+                    submission_id=str(tran_id),
+                    collection_data=de_data,
+                    template=message_template,
+                    queue='on-us'
+                )
+            )
+            tran_list.append(
+                build_message(
+                    submission_id=str(tran_id+1),
+                    collection_data=json_data,
+                    collection_format_name='json',
+                    template=message_template,
+                    queue='on-us'
+                )
+            )
 
-        for message in Message.objects():
-            print(repr(message))
-            print(message.collection.format.name)
-            print(message.collection.format.version)
-            print(message.collection.data)
-            if message.distribution is not None:
-                # print(message.distribution.format.name)
-                # print(message.distribution.format.version)
-                print(message.distribution.data)
-            else:
-                print("no distribution data found!")
+        with testing.postgresql.Postgresql() as postgresql:
+            # setup test database
+            LOGGER.debug('Creating postgresql instance for testing')
+            LOGGER.debug('  url={}'.format(postgresql.url()))
+            LOGGER.debug('  data directory={}'.format(postgresql.get_data_directory()))
+
+            engine = create_engine(postgresql.url(), json_serializer=dumps)
+            alembic_cfg = Config("alembic.ini")
+
+            with engine.begin() as connection:
+                alembic_cfg.attributes['connection'] = connection
+                command.upgrade(alembic_cfg, "head")
+
+            Session = sessionmaker(bind=engine)
+            session = Session()
+            session.add_all(tran_list)
+            session.commit()
+            session.close()
+
+            # run the job
+            runner = CliRunner()
+            with runner.isolated_filesystem() as fs:
+                with open('test.json', 'w') as fp:
+                    fp.write(config)
+                start_time = time.clock()
+                result = runner.invoke(
+                    pr_file_distribution,
+                    ['test.json', 'out-json.txt', '--db-url', postgresql.url()],
+                    catch_exceptions=False
+                )
+                duration = time.clock() - start_time
+                divider = '.'*20
+                LOGGER.debug('output:\n%s', result.output)
+                LOGGER.debug('exception:\n%s', result.exception)
+                outfile = os.path.join(fs, 'out-json.txt')
+                print(divider)
+                with open(outfile, 'r') as out_fh:
+                    record_count = 0
+                    for line in out_fh:
+                        print(line.rstrip())
+                        record_count += 1
+                    print("Processed {} lines".format(record_count))
+                print("{}\nRun completed in {} seconds\n{}".format(divider, duration, divider))

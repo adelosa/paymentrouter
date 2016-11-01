@@ -24,9 +24,9 @@ Dictionary format for direct_entry
     'withholding_tax_amount': '00000000',
 }
 """
-import os
 import logging
 import re
+from datetime import datetime
 from io import StringIO
 
 
@@ -100,7 +100,9 @@ def file_to_dict(file_handle):
         elif record_type == '7' and last_record_type in ('1', '2', '3'):
             pass
         else:
-            raise Exception('Invalid record type - record_type=[{}], last_record_type=[{}]'.format(record_type, last_record_type))
+            raise Exception(
+                'Invalid record type - record_type=[{}], last_record_type=[{}]'.format(record_type, last_record_type)
+            )
 
         last_record_type = record_type
 
@@ -187,12 +189,10 @@ def dict_to_file(data):
 
     output_list.append(get_trailer(totals))
 
-    # add line endings
-    output_list = [line + os.linesep for line in output_list]
-
     # add to stream
     output_stream = StringIO()
-    output_stream.writelines(output_list)
+    # add line endings
+    output_stream.writelines('\n'.join(output_list))
     output_stream.seek(0)
 
     return output_stream
@@ -207,7 +207,9 @@ def route_rule_direct_entry_bsb(message, bsb_regex):
     """
     LOGGER.debug('route_rule_direct_entry_bsb:%s', message)
     if re.match(bsb_regex, message['bsb_number']):
+        LOGGER.debug('MATCHED "{}" using regex "{}"'.format(message['bsb_number'], bsb_regex))
         return True
+    LOGGER.debug('!NO MATCH on "{}" using regex "{}"'.format(message['bsb_number'], bsb_regex))
     return False
 
 
@@ -229,7 +231,7 @@ def convert_json_1(json):
         'user_name': 'hello',
         'user_num': '123456',
         'file_desc': 'payroll',
-        'date_for_process': json['post_date'].strftime('%d%m%y'),
+        'date_for_process': datetime.strptime(json['post_date'], '%Y-%m-%d').strftime('%d%m%y'),
         'bsb_number': json['to_routing'],
         'account_number': json['to_account'],
         'indicator': ' ',
@@ -242,6 +244,5 @@ def convert_json_1(json):
         'name_of_remitter': json['from_name'],
         'withholding_tax_amount': '00000000',
     }
-
 
     return direct_entry
