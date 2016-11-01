@@ -33,16 +33,21 @@ class PRFileDistributionTestCase(unittest.TestCase):
         LOGGER.debug(result.output)
         self.assertTrue(True)
 
-    def test_cli_run(self):
+    def test_json_end_to_end(self):
+        self.end_to_end_run('json')
+        self.end_to_end_run('direct_entry')
+
+    def end_to_end_run(self, format_name):
         config = """
 {
     "format": {
-        "name": "direct_entry",
+        "name": "{{format_name}}",
         "version": 1
     },
     "queue": "on-us"
 }
         """
+        config = config.replace('{{format_name}}', format_name)
 
         # transaction template
         message_template = {
@@ -92,7 +97,7 @@ class PRFileDistributionTestCase(unittest.TestCase):
         }
 
         tran_list = []
-        for tran_id in range(0, 1000, 2):
+        for tran_id in range(0, 100, 2):
             tran_list.append(
                 build_message(
                     submission_id=str(tran_id),

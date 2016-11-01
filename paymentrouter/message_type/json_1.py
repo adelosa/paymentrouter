@@ -21,7 +21,7 @@ dictionary format for json files
 """
 import logging
 import json
-from datetime import datetime
+from datetime import datetime, date
 
 try:
     from StringIO import StringIO
@@ -34,6 +34,8 @@ LOGGER = logging.getLogger(__name__)
 class DateTimeEncoder(json.JSONEncoder):
     def default(self, o):
         if isinstance(o, datetime):
+            return o.isoformat()
+        if isinstance(o, date):
             return o.isoformat()
 
         return json.JSONEncoder.default(self, o)
@@ -67,7 +69,7 @@ def dict_to_file(data):
     :return: file stream
     """
     outfile = StringIO()
-    json.dump(data, outfile, cls=DateTimeEncoder)
+    json.dump(data, outfile, cls=DateTimeEncoder, indent=4, separators=(',', ': '))
     outfile.seek(0)
     return outfile
 
