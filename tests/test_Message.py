@@ -5,7 +5,7 @@ from datetime import date
 
 from mongoengine import connect, Q
 
-from paymentrouter.model.Message import Message, build_message
+from paymentrouter.model.MessageMongo import Message, build_message
 
 
 class MessageTestCase(unittest.TestCase):

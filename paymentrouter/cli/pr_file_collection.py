@@ -35,12 +35,14 @@ process incoming file based payments
 """
 import json
 import logging
-from datetime import datetime
 
 import click
-from mongoengine import connect
+
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+
 from paymentrouter.MessageRouter import MessageRouter, get_format_module_function, get_format_module_name
-from paymentrouter.model.Message import Message, build_message
+from paymentrouter.model.Transaction import build_message
 
 LOGGER = logging.getLogger(__name__)
 
@@ -95,18 +97,20 @@ def route_items(input_dict, routing, input_format):
         input_item['queue'] = queue
 
 
-def write_to_mongo(input_records, db_host, db_name):
+def write_to_db(input_records, db_url):
     """
-    Write input_dict to mongo. Queue determines collection
+    Write input_dict to db.
     :param input_records: list of dict containing data
-    :param db_host: mongo host name
-    :param db_name: mongo db name
+    :param db_url: db connection url
     :return: None
     """
-    click.echo("Connecting to mongo at {} {}".format(db_host, db_name))
-    connect(db_name, host=db_host)
-
-    Message.objects.insert(input_records)
+    click.echo('Connecting to db {}'.format(db_url))
+    engine = create_engine(db_url, echo=True)
+    Session = sessionmaker(bind=engine)
+    session = Session()
+    session.add_all(input_records)
+    session.commit()
+    session.close()
 
 
 def create_records(input_dict, config):
@@ -114,15 +118,15 @@ def create_records(input_dict, config):
     formats mongoengine record from transaction
     :param input_dict: list of dicts containing data
     :param config: json job config
-    :return: list of mongoengine documents
+    :return: list of db records
     """
     router = MessageRouter()
     router.output_routing_rules = config['routing']
 
     output_template = {
         'source': config['source'],
-        'format': config['format']['name'],
-        'version': config['format']['version']
+        'collection_format_name': config['format']['name'],
+        'collection_format_version': config['format']['version']
     }
 
     output_records = []
@@ -135,10 +139,9 @@ def create_records(input_dict, config):
         )
         # build message
         output_record = build_message(
-            data=input_record,
+            collection_data=input_record,
             queue=queue,
             template=output_template,
-            payment_date=datetime.today().date()
         )
         output_records.append(output_record)
 
@@ -163,27 +166,24 @@ def run(args):
     records = create_records(file_dict, config)
 
     # write the trans to mongo using queue = collection
-    write_to_mongo(records, args.db_host, args.db_name)
+    write_to_db(records, args.db_url)
 
 
 @click.command()
 @click.argument('config-file', type=click.File('r'))
 @click.argument('input-file', type=click.File('r'))
-@click.option('--db-host', envvar='PR_DB_HOST', default='127.0.0.1')
-@click.option('--db-name', envvar='PR_DB_NAME', default='paymentrouter')
+@click.option('--db-url', envvar='PR_DB_URL', default='postgresql://postgres@127.0.0.1/test')
 @pass_args
-def pr_file_collection(args, config_file, input_file, db_host, db_name):
+def pr_file_collection(args, config_file, input_file, db_url):
     """
     run file collection cli
     :param args:
     :param config_file:
     :param input_file:
-    :param db_host:
-    :param db_name:
+    :param db_url:
     :return:
     """
     args.config_file = config_file
     args.input_file = input_file
-    args.db_host = db_host
-    args.db_name = db_name
+    args.db_url = db_url
     run()

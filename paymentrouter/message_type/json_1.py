@@ -19,12 +19,14 @@ dictionary format for json files
     # next record
 }]
 """
-
 import logging
 import json
 from datetime import datetime
-from io import StringIO
 
+try:
+    from StringIO import StringIO
+except ImportError:
+    from io import StringIO
 
 LOGGER = logging.getLogger(__name__)
 
@@ -38,7 +40,7 @@ class DateTimeEncoder(json.JSONEncoder):
 
 
 def date_hook(json_dict):
-    print("date_hook called with json_dict=\n{0}".format(json_dict))
+    LOGGER.debug("date_hook called with json_dict=\n%s", json_dict)
     for (key, value) in json_dict.items():
         try:
             json_dict[key] = datetime.strptime(value, "%Y-%m-%dT%H:%M:%S")
@@ -56,6 +58,7 @@ def file_to_dict(file_handle):
     output_dict = json.load(file_handle, object_hook=date_hook)
 
     return output_dict
+
 
 def dict_to_file(data):
     """

@@ -1,5 +1,4 @@
 click
-mock
-peewee
 mongoengine
-mongomock
+sqlalchemy
+alembic

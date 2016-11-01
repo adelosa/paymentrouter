@@ -4,11 +4,17 @@ import unittest
 import mock
 import logging
 
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from alembic.config import Config
+from alembic import command
 from click.testing import CliRunner
+import testing.postgresql
 
 from paymentrouter.cli.pr_file_collection import (
     convert_input, route_items, pr_file_collection, create_records
 )
+from paymentrouter.model.Transaction import Transaction, TransactionStatus
 
 logging.basicConfig(format='%(levelname)s:%(message)s', level=logging.DEBUG)
 
@@ -80,8 +86,8 @@ class PRFileCollectionTestCase(unittest.TestCase):
         }
         output = create_records([{'value': 1}, {'value': 0}], config)
         self.assertEqual(2, len(output))
-        self.assertEqual('queue_1', output[0].distribution.queue)
-        self.assertEqual('default', output[1].distribution.queue)
+        self.assertEqual('queue_1', output[0].queue)
+        self.assertEqual('default', output[1].queue)
 
     def test_cli_run_help(self):
         runner = CliRunner()
@@ -90,6 +96,11 @@ class PRFileCollectionTestCase(unittest.TestCase):
         self.assertTrue(True)
 
     def test_cli_run(self):
+        """
+        This is an end to end test which establishes a new postgresql db then runs a collection process
+        with a sample config and input file
+        :return:
+        """
         config = """
 {
     "source": "RBA",
@@ -100,7 +111,7 @@ class PRFileCollectionTestCase(unittest.TestCase):
     "routing": {
         "099_bsb_route" : {
             "rule_function" : "route_rule_direct_entry_bsb",
-            "rule_value" : "^(57993[0-9]|484799)$",
+            "rule_value" : "^(579-93[0-9]|484-799)$",
             "queue" : "de_onus"
         }
     }
@@ -112,12 +123,45 @@ class PRFileCollectionTestCase(unittest.TestCase):
             "7999-999            000000000100000000010000000001                        000001                                        "
         )
         runner = CliRunner()
-        with runner.isolated_filesystem():
-            with open('test.json', 'w') as fp:
-                fp.write(config)
-            with open('test.input.txt', 'w') as fp:
-                fp.write(test_data)
-            result = runner.invoke(pr_file_collection, ['test.json', 'test.input.txt', '--db-host', "mongomock://localhost"], catch_exceptions=True)
+
+        with testing.postgresql.Postgresql() as postgresql:
+            print('Creating postgresql instance for testing')
+            print('  url={}'.format(postgresql.url()))
+            print('  data directory={}'.format(postgresql.get_data_directory()))
+
+            engine = create_engine(postgresql.url())
+            alembic_cfg = Config("alembic.ini")
+            with engine.begin() as connection:
+                alembic_cfg.attributes['connection'] = connection
+                command.upgrade(alembic_cfg, "head")
+
+            with runner.isolated_filesystem():
+                with open('test.json', 'w') as fp:
+                    fp.write(config)
+                with open('test.input.txt', 'w') as fp:
+                    fp.write(test_data)
+                result = runner.invoke(pr_file_collection, ['test.json', 'test.input.txt', '--db-url', postgresql.url()], catch_exceptions=True)
+
+            # check the results from the database
+            Session = sessionmaker(bind=engine)
+            session = Session()
+
+            transactions = session.query(Transaction).all()
+
+            self.assertEqual(1, len(transactions), 'check that 1 record saved')
+            LOGGER.debug(transactions[0])
+            self.assertEqual('direct_entry', transactions[0].collection_format_name, 'check format name saved')
+            self.assertEqual(1, transactions[0].collection_format_version, 'check format version saved')
+            self.assertEqual('de_onus', transactions[0].queue, 'check correct queue saved')
+            self.assertIsNone(transactions[0].distribution_data)
+            self.assertIsNone(transactions[0].distribution_format_name)
+            self.assertIsNone(transactions[0].distribution_format_version)
+            self.assertIsNone(transactions[0].distribution_date)
+            self.assertEqual(TransactionStatus.ready, transactions[0].status)
+
+            session.commit()
+            session.close()
+
         LOGGER.debug("proper_test:\n%s", result.output)
         LOGGER.debug(result.exception)
         self.assertEqual(0, result.exit_code)

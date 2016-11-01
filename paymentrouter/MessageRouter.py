@@ -42,7 +42,7 @@ class MessageRouter:
         """
         LOGGER.debug("load_routing_rules")
         self.output_routing_rules = json.loads(json_rules)
-        #TODO Validate rules
+        # TODO Validate rules
 
     def get_message_output_queue(self, message, default_rule_module=None):
         """
