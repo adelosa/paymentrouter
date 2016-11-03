@@ -18,6 +18,7 @@ import testing.postgresql
 
 from paymentrouter.model import dumps
 from paymentrouter.model.Transaction import TransactionStatus, build_message
+from paymentrouter.model.SystemControl import SystemControl
 from paymentrouter.cli.pr_file_distribution import pr_file_distribution
 
 logging.basicConfig(format='%(levelname)s:%(message)s', level=logging.DEBUG)
@@ -115,6 +116,9 @@ class PRFileDistributionTestCase(unittest.TestCase):
                     queue='on-us'
                 )
             )
+        tran_list.append(
+            SystemControl(system_id=1, effective_date=date(2000, 1, 1))
+        )
 
         with testing.postgresql.Postgresql() as postgresql:
             # setup test database

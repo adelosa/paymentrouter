@@ -24,6 +24,7 @@ from sqlalchemy.orm import sessionmaker
 
 from paymentrouter.MessageRouter import get_format_module_function
 from paymentrouter.model import dumps
+from paymentrouter.model.SystemControl import SystemControl
 from paymentrouter.model.Transaction import Transaction, TransactionStatus
 
 LOGGER = logging.getLogger(__name__)
@@ -83,11 +84,14 @@ def run(args):
     Session = sessionmaker(bind=engine)
     session = Session()
 
+    # get the system effective data
+    effective_date = session.query(SystemControl.effective_date).one()
+
     # get all transactions ready to be processed for this queue
     messages = session.query(Transaction).filter(
         Transaction.queue == config['queue'],
         Transaction.status == TransactionStatus.ready,
-        or_(Transaction.distribution_date <= datetime.datetime.today(),  # TODO add system date config
+        or_(Transaction.distribution_date <= effective_date,
             Transaction.distribution_date.is_(None)),
     ).all()
 

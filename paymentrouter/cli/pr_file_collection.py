@@ -162,10 +162,10 @@ def run(args):
     file_dict = convert_input(config['format'], args.input_file)
     LOGGER.debug("BEFORE: file_dict=%s", file_dict)
 
-    # create transaction documents
+    # create transaction records
     records = create_records(file_dict, config)
 
-    # write the trans to mongo using queue = collection
+    # write the trans to db using queue = collection
     write_to_db(records, args.db_url)
 
 
