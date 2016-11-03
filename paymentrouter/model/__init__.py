@@ -1,9 +1,14 @@
 import json
 from datetime import datetime, date
+from pprint import pformat
 
-from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.ext.declarative import as_declarative
 
-Base = declarative_base()
+
+@as_declarative()
+class Base(object):
+    def __repr__(self):
+        return '<{}: {}\n>'.format(type(self).__name__, pformat(vars(self)))
 
 
 def _default(val):

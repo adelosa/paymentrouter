@@ -1,5 +1,4 @@
 from datetime import datetime
-from pprint import pformat
 
 import enum
 
@@ -30,9 +29,6 @@ class Transaction(Base):
     distribution_format_version = Column(SmallInteger)
     distribution_data = Column(JSONB)
     distribution_date = Column(Date)
-
-    def __repr__(self):
-        return '<{}: {}\n>'.format(type(self).__name__, pformat(vars(self)))
 
 
 def build_message(template=None, **kwargs):
