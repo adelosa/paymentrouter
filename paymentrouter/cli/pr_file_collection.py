@@ -30,8 +30,6 @@ process incoming file based payments
     }
 }
 
-- add to dict processing_date from command line (odate)
-
 """
 import json
 import logging
@@ -60,8 +58,6 @@ pass_args = click.make_pass_decorator(CommandArgs, ensure=True)
 def load_json_config(config_file_handle):
     """
     load window config
-    :param config_file_handle: file handle for window config file
-    :return: dict config
     """
     return json.load(config_file_handle)
 
@@ -177,11 +173,6 @@ def run(args):
 def pr_file_collection(args, config_file, input_file, db_url):
     """
     run file collection cli
-    :param args:
-    :param config_file:
-    :param input_file:
-    :param db_url:
-    :return:
     """
     args.config_file = config_file
     args.input_file = input_file

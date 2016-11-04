@@ -50,10 +50,12 @@ def bridge_data(collection_format, distribution_format, collection_data):
     """
     converts data from collection to distribution format.
     logic for this will reside in distribution message type module
-    :param collection_format:
-    :param distribution_format:
-    :param collection_data:
-    :return:
+    :param collection_format: dict with name, version keys
+        { 'name': 'format_name', 'version': 1 }
+    :param distribution_format: dict with name, version keys
+        { 'name': 'format_name', 'version': 1 }
+    :param collection_data: dict data in collection format
+    :return: dict data in distribution format
     """
     func = get_format_module_function(
         distribution_format, 'convert_{0}_{1}'.format(collection_format['name'], collection_format['version'])
@@ -65,9 +67,10 @@ def create_file(distribution_format, distribution_data):
     """
     converts data from collection to distribution format.
     logic for this will reside in distribution message type module
-    :param distribution_format:
-    :param distribution_data:
-    :return:
+    :param distribution_format: dict with name, version keys
+        { 'name': 'format_name', 'version': 1 }
+    :param distribution_data: list of dict in distribution format
+    :return: file stream containing distribution data
     """
     func = get_format_module_function(distribution_format, 'dict_to_file')
     return func(distribution_data)
@@ -75,6 +78,11 @@ def create_file(distribution_format, distribution_data):
 
 @pass_args
 def run(args):
+    """
+    main application logic
+    :param args: args from command line
+    :return:
+    """
 
     # load distribution config
     config = load_json_config(args.config_file)
@@ -131,8 +139,12 @@ def run(args):
         message.status = TransactionStatus.processed
         message.distribution_date = datetime.datetime.today().date()
 
-    # write to the database
+    # commit and close session
     session.commit()
+    session.close()
+
+    # finish and exit
+    click.secho('Processing completed', color='green')
 
 
 @click.command()
